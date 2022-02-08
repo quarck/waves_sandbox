@@ -143,7 +143,7 @@ namespace waves
 					}
 				}
 
-				if (world.current_iteration() % 2 == 0)
+				if (world.current_iteration() % 64 == 0)
 				{
 					auto now = std::chrono::high_resolution_clock::now();
 					std::chrono::duration<double> sinceLastUpdate = std::chrono::duration_cast<std::chrono::duration<double>>(now - lastUIUpdate);

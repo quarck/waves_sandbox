@@ -4,7 +4,7 @@
 
 namespace waves
 {
-	template <size_t W, size_t H, size_t D, typename TValue=float> 
+	template <int W, int H, int D, typename TValue=float>
 	struct Medium
 	{
 		std::vector<TValue> data;
@@ -14,11 +14,11 @@ namespace waves
 
 		}
 
-		size_t width() const noexcept { return W; }
-		size_t height() const noexcept { return H; }
-		size_t depth() const noexcept { return D; }
+		static constexpr int width() noexcept { return W; }
+		static constexpr int height() noexcept { return H; }
+		static constexpr int depth() noexcept { return D; }
 
-		static size_t offset_for(int x, int y, int z) noexcept
+		constexpr static int offset_for(int x, int y, int z) noexcept
 		{
 			return x * H * D + y * D + z;
 		}

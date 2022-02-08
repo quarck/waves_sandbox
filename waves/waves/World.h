@@ -13,6 +13,8 @@
 #include <sstream>
 #include <array>
 
+#include <ppl.h>
+
 #include "vec3d.h"
 #include "Random.h"
 #include "ThreadGrid.h"
@@ -30,10 +32,12 @@ namespace waves
 	public:
 		using TMedium = Medium<512, 512, 1>;
 
-		static constexpr double FACTOR = 0.10;
+		static constexpr double VEL_FACTOR = 0.40; // dV = -k*x/m * dT, this is k*dT/m
+		static constexpr double LOC_FACTOR = 0.1; // dX = V * dT, this is dT
 
 	private:
-		std::array<TMedium, 2> _medium;
+		TMedium _location;
+		TMedium _velocity;
 
         Random _random{};
 		int64_t _iteration{ 0 };
@@ -41,10 +45,10 @@ namespace waves
 	public:
         World()
         {	
-			for (int i = 0; i < 100; ++i)
-				for (int j = 0; j < 100; ++j){
-					_medium[0].at(i, j, 0) = 1000;
-					_medium[1].at(i, j, 0) = 1000;
+			for (int i = 256-20; i < 256+20; ++i)
+				for (int j = 256-4; j < 256+4; ++j)
+				{
+					_location.at(i, j, 0) = 5000;
 				}
 		}
 
@@ -55,26 +59,65 @@ namespace waves
 	public:
 		bool iterate()  noexcept
 		{
-			auto& current = _medium[_iteration % 2];
-			auto& next = _medium[(_iteration + 1) % 2];
+			constexpr int xn_yn_z0 = TMedium::offset_for(-1, -1, 0);
+			constexpr int x0_yn_z0 = TMedium::offset_for(0, -1, 0);
+			constexpr int xp_yn_z0 = TMedium::offset_for(1, -1, 0);
 
-			for (int x = 1; x < current.width()-1; ++x)
+			constexpr int xn_y0_z0 = TMedium::offset_for(-1, 0, 0);
+			//constexpr int x0_y0_z0 = TMedium::offset_for(0, 0, 0);
+			constexpr int xp_y0_z0 = TMedium::offset_for(1, 0, 0);
+
+			constexpr int xn_yp_z0 = TMedium::offset_for(-1, 1, 0);
+			constexpr int x0_yp_z0 = TMedium::offset_for(0, 1, 0);
+			constexpr int xp_yp_z0 = TMedium::offset_for(1, 1, 0);
+
+
+			concurrency::parallel_for(
+				1, static_cast<int>(TMedium::width() - 1),
+				[&](int x)				
+				{
+					int offset = TMedium::offset_for(x, 1, 0);
+					constexpr int y_delta = TMedium::offset_for(0, 1, 0);
+
+					for (int y = 1; y < TMedium::height() - 1; ++y)
+					{
+						//for (int z = 1; z < current.depth()-1; ++z)
+						//{
+
+					//	int offset = TMedium::offset_for(x, y, 0);
+
+						const auto neigh_total =
+							_location.data[offset + xn_yn_z0] * 0.7 + _location.data[offset + x0_yn_z0] + _location.data[offset + xp_yn_z0] * 0.7 +
+							_location.data[offset + xn_y0_z0] + _location.data[offset + xp_y0_z0] +
+							_location.data[offset + xn_yp_z0] * 0.7 + _location.data[offset + x0_yp_z0] + _location.data[offset + xp_yp_z0] * 0.7;
+
+						const auto neight_average = neigh_total / (4.0 + 4.0 * 0.7);
+
+						const auto delta_x = _location.data[offset] - neight_average; // displacement relative to the current neightbour average 
+
+						_velocity.data[offset] -= VEL_FACTOR * delta_x;
+
+						offset += y_delta;
+					}
+				}
+				);
+
+			for (int x = 1; x < TMedium::width() - 1; ++x)
 			{
-				for (int y = 1; y < current.height()-1; ++y)
+				int offset = TMedium::offset_for(x, 1, 0);
+				constexpr int y_delta = TMedium::offset_for(0, 1, 0);
+
+				for (int y = 1; y < TMedium::height() - 1; ++y)
 				{
 					//for (int z = 1; z < current.depth()-1; ++z)
 					//{
+//					int offset = TMedium::offset_for(x, y, 0);
+					_location.data[offset] += _velocity.data[offset] * LOC_FACTOR;
 
-					const auto neigh_total =
-						current.at(x - 1, y - 1, 0) * 0.7 + current.at(x, y - 1, 0) + current.at(x + 1, y - 1, 0) * 0.7 +
-						current.at(x - 1, y, 0) + /* 0 */ +current.at(x + 1, y, 0) +
-						current.at(x - 1, y + 1, 0) * 0.7 + current.at(x, y + 1, 0) + current.at(x + 1, y + 1, 0) * 0.7;
-
-					const auto neight_average = neigh_total / (4.0 + 4.0*0.7);
-
-					next.at(x, y, 0) = current.at(x, y, 0) * (1-FACTOR) + neight_average * FACTOR;
+					offset += y_delta;
 				}
 			}
+
 
 			_iteration++;
 			return true;
@@ -85,6 +128,6 @@ namespace waves
 			return _iteration;
 		}
 
-		const TMedium& get_data() const { return _medium[_iteration % 2]; }
+		const TMedium& get_data() const { return _location; }
     };
 }
