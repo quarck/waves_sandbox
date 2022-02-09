@@ -366,7 +366,7 @@ namespace waves
 //			ofn.lStructSize = sizeof(ofn);
 //
 //			ofn.hwndOwner = hWND;
-//			ofn.lpstrFilter = L"Gravity (*.gra)\0*.gra\0";
+//			ofn.lpstrFilter = L"Waves (*.wawa)\0*.wawa\0";
 //			ofn.lpstrFile = &file[0];
 //			ofn.nMaxFile = MAX_PATH;
 //			ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
@@ -397,7 +397,7 @@ namespace waves
 			//ofn.lStructSize = sizeof(ofn);
 
 			//ofn.hwndOwner = hWND;
-			//ofn.lpstrFilter = L"Gravity (*.gra)\0*.gra\0";
+			//ofn.lpstrFilter = L"Waves (*.wawa)\0*.wawa\0";
 			//ofn.lpstrFile = &file[0];
 			//ofn.nMaxFile = MAX_PATH;
 			//ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;

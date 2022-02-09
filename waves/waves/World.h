@@ -14,6 +14,7 @@
 #include <array>
 
 #include <ppl.h>
+#include <immintrin.h> 
 
 #include "vec3d.h"
 #include "Random.h"
@@ -122,29 +123,36 @@ namespace waves
 				}
 				);
 
-			constexpr float f = 0.9;
-
-			for (int y = 0; y < TMedium::height(); ++y)
-			{
-				for (int i = 0; i < 4; ++i)
+			// prevent the reflections from the edges by dunmping the velocity at the boundaries 
+			concurrency::parallel_invoke(
+				[&]() 
 				{
-					_medium.at(i, y, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
-					_medium.at(TMedium::width()-1-i, y, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
-				}
-			}
-
-			for (int x = 0; x < TMedium::width(); ++x)
-			{
-				for (int i = 0; i < 4; ++i)
+					for (int y = 0; y < TMedium::height(); ++y)
+					{
+						for (int i = 0; i < 4; ++i)
+						{
+							_medium.at(i, y, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
+							_medium.at(TMedium::width() - 1 - i, y, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
+						}
+					}
+				},
+				[&]() 
 				{
-					_medium.at(x, i, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
-					_medium.at(x, TMedium::height() - 1 - i, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
+					for (int x = 0; x < TMedium::width(); ++x)
+					{
+						for (int i = 0; i < 4; ++i)
+						{
+							_medium.at(x, i, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
+							_medium.at(x, TMedium::height() - 1 - i, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
+						}
+					}
 				}
-			}
+			);
 
 
 			uint64_t mid = __rdtsc();
 
+			// Update the locations 
 			concurrency::parallel_for(
 				0, static_cast<int>(TMedium::width() / 16),
 				[&](int X_big)
@@ -158,16 +166,6 @@ namespace waves
 						}
 					}
 				});
-
-			// prevent the reflections from the edges 
-
-			//for (int x = 0; x < TMedium::width()/2; ++x)
-			//{
-			//	// YAY! -1
-			//	_medium.at(x, -1, 0).displacement = _medium.at(x, 0, 0).displacement + _medium.at(x, 0, 0).veocity * LOC_FACTOR;
-			//	//_medium.at(x, -1, 0).displacement = 2 * _medium.at(x, 0, 0).displacement - _medium.at(x, 1, 0).displacement;
-			//	//_medium.at(x, TMedium::height(), 0).displacement = 2 * _medium.at(x, TMedium::height() - 1, 0).displacement - _medium.at(x, TMedium::height() - 2, 0).displacement;
-			//}
 
 
 			uint64_t end = __rdtsc();
@@ -211,7 +209,9 @@ namespace waves
 			{
 				for (int j = y; j < y + h; ++j)
 				{
-					_medium.at(x, y, 0).displacement = value;
+					auto& item = _medium.at(x, y, 0);
+					item.displacement = value;
+					item.veocity = 0.0f;
 				}
 			}
 		}

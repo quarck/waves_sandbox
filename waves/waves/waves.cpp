@@ -2,6 +2,8 @@
 #include <GL/gl.h>			/* OpenGL header file */
 #include <GL/glu.h>			/* OpenGL utilities header file */
 
+#include <immintrin.h> 
+
 #include "waves.h"
 
 #include <atomic>
@@ -316,6 +318,8 @@ auto make_controller(waves::runtime_config& config)
 
 int APIENTRY wWinMain(_In_ HINSTANCE hCurrentInst, _In_opt_ HINSTANCE hPreviousInst, _In_ LPWSTR lpszCmdLine, _In_ int nCmdShow)
 {
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+
     waves::runtime_config config;
     //if (!config.parse_command_line(lpszCmdLine))
     //{
@@ -326,7 +330,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hCurrentInst, _In_opt_ HINSTANCE hPreviousI
     controller = make_controller(config);
 
     controller->SetHWND(
-        CreateOpenGLWindow(_T("Gravity Sandbox"), 0, 0,
+        CreateOpenGLWindow(_T("Waves Sandbox"), 0, 0,
             waves::props::ViewPortWidth, waves::props::ViewPortHeight,
             PFD_TYPE_RGBA, PFD_DOUBLEBUFFER));
 
