@@ -21,6 +21,8 @@ namespace waves
 		int numActiveThreads;
 		bool showDetailedcontrols;
 		bool paused;
+		uint64_t clocks_first_half{ 0 };
+		uint64_t clocks_second_half{ 0 };
 
 		WorldViewDetails(int nThr, bool p) 
 			: numActiveThreads{ nThr }
@@ -80,20 +82,21 @@ namespace waves
 			glPopMatrix();
 		}
 
-		void PrintStats(const WorldViewDetails& details, const std::string& currentObjectName) noexcept
+		void PrintStats(const WorldViewDetails& details) noexcept
 		{
 			glPushMatrix();
 
 			glPixelZoom(1.f, 1.f);
 
 			std::ostringstream rcfg;
-			rcfg << "#THR: " << details.numActiveThreads;
+			rcfg << "perf: " << details.clocks_first_half/1000 << "k / " << details.clocks_second_half/1000 << "k = " << (
+				details.clocks_first_half + details.clocks_second_half)/1000 << "k";
 
 			_iterAndCfgLabel.Update(
 				LABELS_BACKGROUND,
 				{ 
 //					std::pair(VERDA_KOLORO, ostr.str()),
-					std::pair(RUGA_KOLORO, currentObjectName), // rcfg.str()),
+					std::pair(RUGA_KOLORO, rcfg.str()),
 				});
 			_iterAndCfgLabel.DrawAt(-1.0, 0.94);
 
@@ -165,7 +168,7 @@ namespace waves
 			{
 				for (int y = 0; y < medium.height(); ++y)
 				{
-					auto v = medium.at(x, y, 0);
+					auto v = medium.at(x, y, 0).displacement;
 
 					glPushMatrix();
 
@@ -175,11 +178,6 @@ namespace waves
 					glTranslatef(loc_x, loc_y, 0.0);
 
 					glBegin(GL_TRIANGLES);
-
-					if (v > 500)
-					{
-						int i = 0;
-					}
 
 					float brightness_p = std::max(0.0, std::min(1.0, v / 1000.0));
 					float brightness_n = std::max(0.0, std::min(1.0, -v / 1000.0)) / 4.0;
@@ -206,6 +204,9 @@ namespace waves
 			}
 
             glPopMatrix();
+
+			PrintStats(details);
+
 		}
     };
 }

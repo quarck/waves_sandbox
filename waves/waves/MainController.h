@@ -153,6 +153,10 @@ namespace waves
 						lastUIUpdate = now;
 						last_update_at = world.current_iteration();
 
+						auto [f, s] = world.get_perf_stats();
+						viewDetails.clocks_first_half = f;
+						viewDetails.clocks_second_half = s;
+
 						uiNeedsUpdate = true;
 						::SendMessage(hWND, WM_USER, 0, 0);
 						while (uiNeedsUpdate && !terminate)

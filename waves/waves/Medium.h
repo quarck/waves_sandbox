@@ -4,12 +4,33 @@
 
 namespace waves
 {
-	template <int W, int H, int D, typename TValue=float>
+	template <int W, int H, int D, int GUARD_SIZE = 4, typename TValue=float>
 	struct Medium
 	{
-		std::vector<TValue> data;
+		static_assert(W % 16 == 0);
+		static_assert(H % 16 == 0);
+		//static_assert(D % 16 == 0);
+		static_assert(D == 1);
 
-		Medium() : data(W* H* D)
+		static_assert(GUARD_SIZE > 0);
+
+		static constexpr int W_GUARD = GUARD_SIZE;
+		static constexpr int H_GUARD = GUARD_SIZE;
+		static constexpr int D_GUARD = 0; // no Z at the moment
+
+		static constexpr int alloc_width = W + 2 * W_GUARD;
+		static constexpr int alloc_height = H + 2 * H_GUARD;
+		static constexpr int alloc_depth = D + 2 * D_GUARD;
+
+		struct Item 
+		{
+			TValue displacement;
+			TValue veocity;
+		};
+
+		std::vector<Item> data;
+
+		Medium() : data(alloc_width * alloc_height * alloc_depth)
 		{
 
 		}
@@ -20,15 +41,15 @@ namespace waves
 
 		constexpr static int offset_for(int x, int y, int z) noexcept
 		{
-			return x * H * D + y * D + z;
+			return (x + W_GUARD) * alloc_width * alloc_depth + (y + H_GUARD) * alloc_depth + z + D_GUARD;
 		}
 
-		const TValue& at(int x, int y, int z) const 
+		const auto& at(int x, int y, int z) const 
 		{
 			return data[offset_for(x, y, z)];
 		}
 
-		TValue& at(int x, int y, int z)
+		auto& at(int x, int y, int z)
 		{
 			return data[offset_for(x, y, z)];
 		}
