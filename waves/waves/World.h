@@ -140,18 +140,17 @@ namespace waves
 
 			// prevent the reflections from the edges 
 
-			//float scale = 0.5;
-
-			//for (int x = 0; x < TMedium::width(); ++x)
-			//{
-			//	_location.at(x, 0, 0) = scale * _location.at(x, 1, 0);
-			//	_location.at(x, TMedium::height() - 1, 0) = scale * _location.at(x, TMedium::height() - 2, 0);
-			//}
+			for (int x = 0; x < TMedium::width(); ++x)
+			{
+				// YAY! -1
+				_medium.at(x, -1, 0).displacement = 2 * _medium.at(x, 0, 0).displacement - _medium.at(x, 1, 0).displacement;
+				//_medium.at(x, TMedium::height(), 0) = _medium.at(x, TMedium::height() - 1, 0);
+			}
 
 			//for (int y = 0; y < TMedium::height(); ++y)
 			//{
-			//	_location.at(0, y, 0) = scale * _location.at(1, y, 0);
-			//	_location.at(TMedium::width() - 1, y, 0) = scale * _location.at(TMedium::width() - 2, y, 0);
+			//	_medium.at(0, y, 0) = _medium.at(1, y, 0);
+			//	_medium.at(TMedium::width() - 1, y, 0) = _medium.at(TMedium::width() - 2, y, 0);
 			//}
 
 			uint64_t end = __rdtsc();
