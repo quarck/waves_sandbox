@@ -4,7 +4,15 @@
 
 namespace waves
 {
-	template <int W, int H, int D, int GUARD_SIZE = 4, typename TValue=float>
+	template <typename TValue=float>
+	struct Item
+	{
+		TValue displacement;
+		TValue veocity;
+	};
+
+
+	template <int W, int H, int D, typename TItem=Item<float>, int GUARD_SIZE = 4>
 	struct Medium
 	{
 		static_assert(W % 16 == 0);
@@ -22,13 +30,7 @@ namespace waves
 		static constexpr int alloc_height = H + 2 * H_GUARD;
 		static constexpr int alloc_depth = D + 2 * D_GUARD;
 
-		struct Item 
-		{
-			TValue displacement;
-			TValue veocity;
-		};
-
-		std::vector<Item> data;
+		std::vector<TItem> data;
 
 		Medium() : data(alloc_width * alloc_height * alloc_depth)
 		{
