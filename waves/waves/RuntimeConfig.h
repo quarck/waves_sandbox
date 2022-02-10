@@ -38,7 +38,7 @@ namespace waves
         static std::string wcs2mbs(std::wstring w_string)
         {
             const wchar_t* wcs_ind_string = w_string.c_str();
-            int buffer_size = (w_string.size() + 10) * 8 + 1024;
+            auto buffer_size = (w_string.size() + 10) * 8 + 1024;
 
             std::vector<char> buffer(buffer_size);
 

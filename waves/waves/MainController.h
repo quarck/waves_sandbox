@@ -216,6 +216,11 @@ namespace waves
 			recording = !recording && _imageLogger;
 		}
 
+		void onToggleLight(int idx)
+		{
+			world.toggle_light(idx);
+		}
+
 		void OnKeyboard(WPARAM wParam) override
 		{
 			switch (wParam)
@@ -246,6 +251,16 @@ namespace waves
 
 			case 't': case 'T': 
 				onToggleScreenRecording();
+				break;
+
+			case '1': 
+				onToggleLight(0);
+				break;
+			case '2':
+				onToggleLight(1);
+				break;
+			case '3':
+				onToggleLight(2);
 				break;
 
 			//case '+': case '=':

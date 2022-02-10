@@ -32,14 +32,14 @@ namespace waves
 	public:
 		using TMedium = Medium<512, 512, 1>;
 
-		static constexpr double VEL_FACTOR1 = 0.40; // dV = -k*x/m * dT, this is k*dT/m
-		static constexpr double VEL_FACTOR2 = 0.1; // dV = -k*x/m * dT, this is k*dT/m
-		static constexpr double LOC_FACTOR = 0.1; // dX = V * dT, this is dT
+		static constexpr float VEL_FACTOR1 = 0.40; // dV = -k*x/m * dT, this is k*dT/m
+		static constexpr float VEL_FACTOR2 = 0.13; // dV = -k*x/m * dT, this is k*dT/m
+		static constexpr float LOC_FACTOR = 0.1; // dX = V * dT, this is dT
 
-		static constexpr double F_B = 0.98;
-		static constexpr double EDGE_SLOW_DOWN_FACTORS[] = { F_B * F_B * F_B * F_B, F_B * F_B * F_B, F_B * F_B, F_B };
+		static constexpr float F_B = 0.98;
+		static constexpr float EDGE_SLOW_DOWN_FACTORS[] = { F_B * F_B * F_B * F_B, F_B * F_B * F_B, F_B * F_B, F_B };
 
-		static constexpr double INV_SQRT_2 = 0.70710678118654752440084436210485;
+		static constexpr float INV_SQRT_2 = 0.707106781187f;
 
 	private:
 		TMedium _medium;
@@ -50,28 +50,29 @@ namespace waves
 		uint64_t first_half_clocks{ 0 };
 		uint64_t second_half_clocks{ 0 };
 
+		std::array<std::atomic_bool, 3> light_enabled { true, true, true };
+
 	public:
         World()
         {	
-			for (int i = 40 - 2; i < 40 + 2; ++i)
-			{
-				for (int j = 256 - 10-100; j < 256 - 5 - 100; ++j)
-					_medium.at(i, j, 0).displacement = 5000 * 8;
-
-				for (int j = 256 + 5+100; j < 256 + 10+100; ++j)
-					_medium.at(i, j, 0).displacement = 5000 * 8;
-			}
 		}
 
 		~World()
 		{
 		}
 
-	public:
-
-#pragma warning(push, disable:26451)
+#pragma warning(push)
+#pragma warning(disable:26451)
 		bool iterate()  noexcept
 		{
+			int fill_value = ((_iteration % 70) < 35) ? 10000 : -10000;
+			if (light_enabled[0])
+				fill(38, 154, 5, 5, fill_value);
+			if (light_enabled[1])
+				fill(38, 254, 5, 5, fill_value);
+			if (light_enabled[2])
+				fill(38, 354, 5, 5, fill_value);
+
 			uint64_t start = __rdtsc();
 
 			constexpr int xn_yn_z0 = TMedium::offset_for(-1, -1, 0) - TMedium::offset_for(0, 0, 0);
@@ -92,11 +93,13 @@ namespace waves
 				{
 					for (int sub_x = 0; sub_x < 16; ++sub_x)
 					{
+						const int x = X_big * 16 + sub_x;
+
 						for (int y = 0; y < TMedium::height(); ++y)
 						{
-							int offset = TMedium::offset_for(X_big*16 + sub_x, y, 0);
+							int offset = TMedium::offset_for(x, y, 0);
 
-							const auto neigh_total =
+							const float neigh_total =
 								_medium.data[offset + xn_yn_z0].displacement * INV_SQRT_2 +
 								_medium.data[offset + x0_yn_z0].displacement +
 								_medium.data[offset + xp_yn_z0].displacement * INV_SQRT_2 +
@@ -106,14 +109,14 @@ namespace waves
 								_medium.data[offset + x0_yp_z0].displacement +
 								_medium.data[offset + xp_yp_z0].displacement * INV_SQRT_2;
 
-							const auto neight_average = neigh_total / (4.0 + 4.0 * INV_SQRT_2);
+							const float neight_average = neigh_total / (4.0f + 4.0f * INV_SQRT_2);
 
-							const auto delta_x = _medium.data[offset].displacement - neight_average; // displacement relative to the current neightbour average 
+							const float delta_x = _medium.data[offset].displacement - neight_average; // displacement relative to the current neightbour average 
 
-							//if ((4*std::pow(x - 200, 2.0) + std::pow(y-256.0, 2.0)) < 50.0 * 50.0)
-							//	_medium.data[offset].veocity -= VEL_FACTOR2 * delta_x;
-							//else 
-							_medium.data[offset].veocity -= VEL_FACTOR1 * delta_x;
+							if ( x < 300 && (std::pow(x - 356.0f, 2.0f) + std::pow(y - 256.0f, 2.0f)) < 15000.0f)
+								_medium.data[offset].veocity -= VEL_FACTOR2 * delta_x;
+							else 
+								_medium.data[offset].veocity -= VEL_FACTOR1 * delta_x;
 						}
 					}
 				}
@@ -191,6 +194,26 @@ namespace waves
 				return { 0, 0 };
 
 			return { first_half_clocks / _iteration, second_half_clocks / _iteration };
+		}
+
+		void toggle_light(int idx)
+		{
+			if (idx >= 0 && idx < light_enabled.size())
+			{
+				light_enabled[idx] = !light_enabled[idx];
+			}
+		}
+
+	private: 
+		void fill(int x, int y, int w, int h, int value)
+		{
+			for (int i = x; i < x + w; ++i)
+			{
+				for (int j = y; j < y + h; ++j)
+				{
+					_medium.at(x, y, 0).displacement = value;
+				}
+			}
 		}
     };
 }
