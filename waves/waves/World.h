@@ -14,6 +14,7 @@
 #include <array>
 
 #include <ppl.h>
+#include <immintrin.h> 
 
 #include "vec3d.h"
 #include "Random.h"
@@ -149,9 +150,9 @@ namespace waves
 				}
 				);
 
-
 			uint64_t mid = __rdtsc();
 
+			// Update the locations 
 			concurrency::parallel_for(
 				0, static_cast<int>(TMedium::width() / 16),
 				[&](int X_big)
@@ -210,7 +211,9 @@ namespace waves
 			{
 				for (int j = y; j < y + h; ++j)
 				{
-					_medium.at(x, y, 0).displacement = value;
+					auto& item = _medium.at(x, y, 0);
+					item.displacement = value;
+					item.veocity = 0.0f;
 				}
 			}
 		}
