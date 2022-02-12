@@ -321,11 +321,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hCurrentInst, _In_opt_ HINSTANCE hPreviousI
     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
 
     waves::runtime_config config;
-    //if (!config.parse_command_line(lpszCmdLine))
-    //{
-    //    MessageBox( NULL, waves::runtime_config::get_usage(), L"Incorrect usage",  MB_OK | MB_ICONHAND);
-    //    return 0;
-    //}
+    if (!config.parse_command_line(lpszCmdLine))
+    {
+        MessageBox( NULL, L"Usage: \nwaves.exe [--scene <n>] [--auto-start]", L"Incorrect usage",  MB_OK | MB_ICONHAND);
+        return 0;
+    }
 
     controller = make_controller(config);
 

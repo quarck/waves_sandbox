@@ -39,7 +39,7 @@ namespace waves
 
 		static constexpr float EDGE_SLOW_DOWN_FACTOR = 0.98;
 
-		static constexpr float INV_SQRT_2 = 0.707106781187f;
+		static constexpr float INV_SQRT_2 = 0.1;// 0.707106781187f; // 0.1
 
 	private:
 		TMedium _medium;
@@ -52,9 +52,82 @@ namespace waves
 
 		std::array<std::atomic_bool, 3> light_enabled { true, true, true };
 
+		int _scene{ 0 };
+
 	public:
-        World()
+        World(int scene)
+			: _scene { scene }
         {	
+			if (scene == 1)
+			{
+				load_scene1();
+			}
+			else 
+			{
+				load_scene0();
+			}
+		}
+
+		~World()
+		{
+		}
+
+	private: 
+
+		void load_scene_edges(int thickness)
+		{
+			for (int x = 0; x < TMedium::width(); ++x)
+			{
+				for (int y = 0; y < TMedium::height(); ++y)
+				{
+					int offset = TMedium::offset_for(x, y, 0);
+
+					if (x < thickness)
+					{
+						_medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - x);
+					}
+					else if (x >= TMedium::width() - thickness)
+					{
+						_medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, x - (TMedium::width() - thickness));
+					}
+					if (y < thickness)
+					{
+						_medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - y);
+					}
+					else if (y >= TMedium::height() - thickness)
+					{
+						_medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - thickness));
+					}
+				}
+			}
+		}
+
+		void load_scene1()
+		{
+			for (int x = 0; x < TMedium::width(); ++x)
+			{
+				for (int y = 0; y < TMedium::height(); ++y)
+				{
+					int offset = TMedium::offset_for(x, y, 0);
+
+					auto dist_centre = std::sqrt(std::pow(x - 256.0f, 2.0f) + std::pow(y - 256.0f, 2.0f));
+
+					if (dist_centre < 122.0)
+					{
+						_medium.data[offset].velocity_factor = VEL_FACTOR2;
+					}
+					else
+						_medium.data[offset].velocity_factor = VEL_FACTOR1;
+
+					_medium.data[offset].resistance_factor = 1.0;					
+				}
+			}
+
+			load_scene_edges(10);
+		}
+
+		void load_scene0()
+		{
 			for (int x = 0; x < TMedium::width(); ++x)
 			{
 				for (int y = 0; y < TMedium::height(); ++y)
@@ -67,51 +140,53 @@ namespace waves
 						_medium.data[offset].velocity_factor = VEL_FACTOR1;
 
 					_medium.data[offset].resistance_factor = 1.0;
-
-					if (x < 6)
-					{
-						_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 6 - x);
-					}
-					else if (x >= TMedium::width() - 6)
-					{
-						_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, x - (TMedium::width() - 6));
-					}
-					if (y < 6)
-					{
-						_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 6 - y);
-					}
-					else if (y >= TMedium::height() - 6)
-					{
-						_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - 6));
-					}
-
-					if (y > 256+90 || y < 256-90)
+					
+					if (y > 256 + 90 || y < 256 - 90)
 					{
 						if (x > 270 && x < 350)
 						{
 							int d = std::abs(x - 310);
-							_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 40-d);
+							_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 40 - d);
 						}
-					}					
+					}
 				}
 			}
+
+			load_scene_edges(6);
 		}
 
-		~World()
-		{
-		}
+	public:
 
 #pragma warning(push)
 #pragma warning(disable:26451)
 		bool iterate()  noexcept
 		{
-			int fill_value = ((_iteration % 70) > 35) ? 10000 : -10000;
-			if (light_enabled[0])
-				fill(38, 154, 5, 5, fill_value);
-			if (light_enabled[1])
-				fill(38, 254, 5, 5, fill_value);
-			if (light_enabled[2])
-				fill(38, 354, 5, 5, fill_value);
+			if (_scene == 1)
+			{
+				int fill_value = ((_iteration % 70) > 35) ? 10000 : -10000;
+				//if (light_enabled[0])
+				//	fill(54, 154, 5, 5, fill_value);
+				//if (light_enabled[1])
+				//	fill(38, 254, 5, 5, fill_value);
+				//if (light_enabled[2])
+				//	fill(54, 354, 5, 5, fill_value);
+				if (light_enabled[0])
+					fill(75, 154, 5, 5, fill_value);
+				if (light_enabled[1])
+					fill(58, 254, 5, 5, fill_value);
+				if (light_enabled[2])
+					fill(75, 354, 5, 5, fill_value);
+			}
+			else
+			{
+				int fill_value = ((_iteration % 70) > 35) ? 10000 : -10000;
+				if (light_enabled[0])
+					fill(38, 154, 5, 5, fill_value);
+				if (light_enabled[1])
+					fill(38, 254, 5, 5, fill_value);
+				if (light_enabled[2])
+					fill(38, 354, 5, 5, fill_value);
+			}
 
 			uint64_t start = __rdtsc();
 
@@ -128,12 +203,12 @@ namespace waves
 			constexpr int xp_yp_z0 = TMedium::offset_for(1, 1, 0) - TMedium::offset_for(0, 0, 0);
 
 			concurrency::parallel_for(
-				0, static_cast<int>(TMedium::height() / 16),
+				0, static_cast<int>(TMedium::height() / 8),
 				[&](int Y_big)
 				{
-					for (int sub_y = 0; sub_y < 16; ++sub_y)
+					for (int sub_y = 0; sub_y < 8; ++sub_y)
 					{
-						const int y = Y_big * 16 + sub_y;
+						const int y = Y_big * 8 + sub_y;
 
 						for (int x = 0; x < TMedium::width(); ++x)
 						{

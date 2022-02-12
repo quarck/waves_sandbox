@@ -96,7 +96,7 @@ namespace waves
         MainController(runtime_config& cfg)
             : config(cfg)
 			, viewDetails { 1, true }
-			, world{ }
+			, world{ cfg.scene() }
 			, _worldView{ world }
         {
         }
