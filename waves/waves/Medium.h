@@ -45,7 +45,8 @@ namespace waves
 
 		constexpr static int offset_for(int x, int y, int z) noexcept
 		{
-			return (x + W_GUARD) * alloc_width * alloc_depth + (y + H_GUARD) * alloc_depth + z + D_GUARD;
+			return (z + D_GUARD) * alloc_width * alloc_depth + (y + H_GUARD) * alloc_width + (x + W_GUARD);
+			//return (x + W_GUARD)* alloc_width* alloc_depth + (y + H_GUARD) * alloc_depth + z + D_GUARD;
 		}
 
 		const auto& at(int x, int y, int z) const 

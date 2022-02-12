@@ -61,7 +61,7 @@ namespace waves
 				{
 					int offset = TMedium::offset_for(x, y, 0);
 
-					if (x > 0.005 * std::pow(y - 256.0, 2.0) + 156.f)
+					if (x < 350.0f && (std::pow(x - 350.0f, 2.0f) + std::pow(y - 256.0f, 2.0f)) < 15000.0f)
 						_medium.data[offset].velocity_factor = VEL_FACTOR2;
 					else
 						_medium.data[offset].velocity_factor = VEL_FACTOR1;
@@ -84,6 +84,15 @@ namespace waves
 					{
 						_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - 6));
 					}
+
+					if (y > 256+90 || y < 256-90)
+					{
+						if (x > 270 && x < 300)
+						{
+							int d = std::abs(x - 285);
+							_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 15-d);
+						}
+					}					
 				}
 			}
 		}
@@ -119,14 +128,14 @@ namespace waves
 			constexpr int xp_yp_z0 = TMedium::offset_for(1, 1, 0) - TMedium::offset_for(0, 0, 0);
 
 			concurrency::parallel_for(
-				0, static_cast<int>(TMedium::width() / 16),
-				[&](int X_big)
+				0, static_cast<int>(TMedium::height() / 16),
+				[&](int Y_big)
 				{
-					for (int sub_x = 0; sub_x < 16; ++sub_x)
+					for (int sub_y = 0; sub_y < 16; ++sub_y)
 					{
-						const int x = X_big * 16 + sub_x;
+						const int y = Y_big * 16 + sub_y;
 
-						for (int y = 0; y < TMedium::height(); ++y)
+						for (int x = 0; x < TMedium::width(); ++x)
 						{
 							int offset = TMedium::offset_for(x, y, 0);
 
@@ -154,14 +163,16 @@ namespace waves
 
 			// Update the locations 
 			concurrency::parallel_for(
-				0, static_cast<int>(TMedium::width() / 16),
-				[&](int X_big)
+				0, static_cast<int>(TMedium::height() / 16),
+				[&](int Y_big)
 				{
-					for (int sub_x = 0; sub_x < 16; ++sub_x)
+					for (int sub_y = 0; sub_y < 16; ++sub_y)
 					{
-						for (int y = 0; y < TMedium::height(); ++y)
+						const int y = Y_big * 16 + sub_y;
+
+						for (int x = 0; x < TMedium::width(); ++x)
 						{
-							int offset = TMedium::offset_for(X_big * 16 + sub_x, y, 0);
+							int offset = TMedium::offset_for(x, y, 0);
 							_medium.data[offset].displacement += _medium.data[offset].veocity * LOC_FACTOR;
 						
 							_medium.data[offset].veocity *= _medium.data[offset].resistance_factor;
