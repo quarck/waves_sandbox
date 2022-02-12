@@ -31,7 +31,7 @@ namespace waves
     class World
     {
 	public:
-		using TMedium = Medium<512, 512, 1>;
+		using TMedium = Medium<512 + 256, 512, 1>;
 
 		static constexpr float VEL_FACTOR1 = 0.40; // dV = -k*x/m * dT, this is k*dT/m
 		static constexpr float VEL_FACTOR2 = 0.13; // dV = -k*x/m * dT, this is k*dT/m
@@ -87,10 +87,10 @@ namespace waves
 
 					if (y > 256+90 || y < 256-90)
 					{
-						if (x > 270 && x < 300)
+						if (x > 270 && x < 350)
 						{
-							int d = std::abs(x - 285);
-							_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 15-d);
+							int d = std::abs(x - 310);
+							_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 40-d);
 						}
 					}					
 				}
@@ -105,7 +105,7 @@ namespace waves
 #pragma warning(disable:26451)
 		bool iterate()  noexcept
 		{
-			int fill_value = ((_iteration % 75) > 35) ? 10000 : -10000;
+			int fill_value = ((_iteration % 70) > 35) ? 10000 : -10000;
 			if (light_enabled[0])
 				fill(38, 154, 5, 5, fill_value);
 			if (light_enabled[1])

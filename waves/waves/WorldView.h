@@ -143,24 +143,24 @@ namespace waves
 				static_cast<GLfloat>(2.0 / waves::props::ViewPortHeight),
 				1.0f);
 
-			if (waves::props::ViewPortHeight < waves::props::ViewPortWidth)
-			{
-				glTranslatef(
-					+(waves::props::ViewPortWidth - waves::props::ViewPortHeight)/2.0,
-					0.0,
-					0.0f
-				);
-			}
-			else
-			{
-				glTranslatef(
-					0.0,
-					-(waves::props::ViewPortWidth - waves::props::ViewPortHeight) / 2.0,
-					0.0f
-				);
-			}
+			//if (waves::props::ViewPortHeight < waves::props::ViewPortWidth)
+			//{
+			//	glTranslatef(
+			//		+(waves::props::ViewPortWidth - waves::props::ViewPortHeight)/2.0,
+			//		0.0,
+			//		0.0f
+			//	);
+			//}
+			//else
+			//{
+			//	glTranslatef(
+			//		0.0,
+			//		-(waves::props::ViewPortWidth - waves::props::ViewPortHeight) / 2.0,
+			//		0.0f
+			//	);
+			//}
 
-			auto min_size = static_cast<float>(std::min(waves::props::ViewPortWidth, waves::props::ViewPortHeight));
+			//auto min_size = static_cast<float>(std::min(waves::props::ViewPortWidth, waves::props::ViewPortHeight));
 
 			const auto& medium = world.get_data();
 
@@ -172,8 +172,8 @@ namespace waves
 
 					glPushMatrix();
 
-					auto loc_x{ (float)x * min_size / medium.width() };
-					auto loc_y{ (float)y * min_size / medium.height() };
+					auto loc_x{ (float)x * waves::props::ViewPortWidth / medium.width() };
+					auto loc_y{ (float)y * waves::props::ViewPortHeight / medium.height() };
 
 					glTranslatef(loc_x, loc_y, 0.0);
 
@@ -186,15 +186,16 @@ namespace waves
 
 					int idx = 0;
 
-					const float sz = min_size / std::max(medium.width(), medium.height());
+					const float sz_w = (float)waves::props::ViewPortWidth / medium.width();
+					const float sz_h = (float)waves::props::ViewPortHeight / medium.height();
 
 					glIndexi(++idx); glVertex2f(0.0f, 0.0f);
-					glIndexi(++idx); glVertex2f(sz, 0.0f);
-					glIndexi(++idx); glVertex2f(0.0f, sz);
+					glIndexi(++idx); glVertex2f(sz_w, 0.0f);
+					glIndexi(++idx); glVertex2f(0.0f, sz_h);
 
-					glIndexi(++idx); glVertex2f(sz, sz);
-					glIndexi(++idx); glVertex2f(sz, 0.0f);
-					glIndexi(++idx); glVertex2f(0.0f, sz);
+					glIndexi(++idx); glVertex2f(sz_w, sz_h);
+					glIndexi(++idx); glVertex2f(sz_w, 0.0f);
+					glIndexi(++idx); glVertex2f(0.0f, sz_h);
 
 					glEnd();
 
