@@ -9,6 +9,8 @@ namespace waves
 	{
 		TValue displacement;
 		TValue veocity;
+		TValue velocity_factor;
+		TValue resistance_factor;
 	};
 
 

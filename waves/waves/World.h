@@ -36,8 +36,7 @@ namespace waves
 		static constexpr float VEL_FACTOR2 = 0.13; // dV = -k*x/m * dT, this is k*dT/m
 		static constexpr float LOC_FACTOR = 0.1; // dX = V * dT, this is dT
 
-		static constexpr float F_B = 0.98;
-		static constexpr float EDGE_SLOW_DOWN_FACTORS[] = { F_B * F_B * F_B * F_B, F_B * F_B * F_B, F_B * F_B, F_B };
+		static constexpr float EDGE_SLOW_DOWN_FACTOR = 0.98;
 
 		static constexpr float INV_SQRT_2 = 0.707106781187f;
 
@@ -55,6 +54,37 @@ namespace waves
 	public:
         World()
         {	
+			for (int x = 0; x < TMedium::width(); ++x)
+			{
+				for (int y = 0; y < TMedium::height(); ++y)
+				{
+					int offset = TMedium::offset_for(x, y, 0);
+
+					if (x > 0.005 * std::pow(y - 256.0, 2.0) + 156.f)
+						_medium.data[offset].velocity_factor = VEL_FACTOR2;
+					else
+						_medium.data[offset].velocity_factor = VEL_FACTOR1;
+
+					_medium.data[offset].resistance_factor = 1.0;
+
+					if (x < 6)
+					{
+						_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 6 - x);
+					}
+					else if (x >= TMedium::width() - 6)
+					{
+						_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, x - (TMedium::width() - 6));
+					}
+					if (y < 6)
+					{
+						_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 6 - y);
+					}
+					else if (y >= TMedium::height() - 6)
+					{
+						_medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - 6));
+					}
+				}
+			}
 		}
 
 		~World()
@@ -65,7 +95,7 @@ namespace waves
 #pragma warning(disable:26451)
 		bool iterate()  noexcept
 		{
-			int fill_value = ((_iteration % 70) < 35) ? 10000 : -10000;
+			int fill_value = ((_iteration % 75) > 35) ? 10000 : -10000;
 			if (light_enabled[0])
 				fill(38, 154, 5, 5, fill_value);
 			if (light_enabled[1])
@@ -113,34 +143,11 @@ namespace waves
 
 							const float delta_x = _medium.data[offset].displacement - neight_average; // displacement relative to the current neightbour average 
 
-							if ( x < 300 && (std::pow(x - 356.0f, 2.0f) + std::pow(y - 256.0f, 2.0f)) < 15000.0f)
-								_medium.data[offset].veocity -= VEL_FACTOR2 * delta_x;
-							else 
-								_medium.data[offset].veocity -= VEL_FACTOR1 * delta_x;
+							_medium.data[offset].veocity -= _medium.data[offset].velocity_factor * delta_x;
 						}
 					}
 				}
 				);
-
-			constexpr float f = 0.9;
-
-			for (int y = 0; y < TMedium::height(); ++y)
-			{
-				for (int i = 0; i < 4; ++i)
-				{
-					_medium.at(i, y, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
-					_medium.at(TMedium::width()-1-i, y, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
-				}
-			}
-
-			for (int x = 0; x < TMedium::width(); ++x)
-			{
-				for (int i = 0; i < 4; ++i)
-				{
-					_medium.at(x, i, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
-					_medium.at(x, TMedium::height() - 1 - i, 0).veocity *= EDGE_SLOW_DOWN_FACTORS[i];
-				}
-			}
 
 
 			uint64_t mid = __rdtsc();
@@ -155,19 +162,11 @@ namespace waves
 						{
 							int offset = TMedium::offset_for(X_big * 16 + sub_x, y, 0);
 							_medium.data[offset].displacement += _medium.data[offset].veocity * LOC_FACTOR;
+						
+							_medium.data[offset].veocity *= _medium.data[offset].resistance_factor;
 						}
 					}
 				});
-
-			// prevent the reflections from the edges 
-
-			//for (int x = 0; x < TMedium::width()/2; ++x)
-			//{
-			//	// YAY! -1
-			//	_medium.at(x, -1, 0).displacement = _medium.at(x, 0, 0).displacement + _medium.at(x, 0, 0).veocity * LOC_FACTOR;
-			//	//_medium.at(x, -1, 0).displacement = 2 * _medium.at(x, 0, 0).displacement - _medium.at(x, 1, 0).displacement;
-			//	//_medium.at(x, TMedium::height(), 0).displacement = 2 * _medium.at(x, TMedium::height() - 1, 0).displacement - _medium.at(x, TMedium::height() - 2, 0).displacement;
-			//}
 
 
 			uint64_t end = __rdtsc();
