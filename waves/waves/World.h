@@ -163,7 +163,7 @@ namespace waves
 		{
 			if (_scene == 1)
 			{
-				int fill_value = ((_iteration % 70) > 35) ? 10000 : -10000;
+				int fill_value = ((_iteration % 70) > 35) ? 3000 : -3000;
 				//if (light_enabled[0])
 				//	fill(54, 154, 5, 5, fill_value);
 				//if (light_enabled[1])
@@ -179,13 +179,16 @@ namespace waves
 			}
 			else
 			{
-				int fill_value = ((_iteration % 70) > 35) ? 10000 : -10000;
+				int fill_value = ((_iteration % 70) > 35) ? 3000 : -3000;
 				if (light_enabled[0])
 					fill(38, 154, 5, 5, fill_value);
 				if (light_enabled[1])
 					fill(38, 254, 5, 5, fill_value);
 				if (light_enabled[2])
 					fill(38, 354, 5, 5, fill_value);
+
+				//if (light_enabled[0])
+				//	fill(38, 154, 4, 359- 154, fill_value/10);
 			}
 
 			uint64_t start = __rdtsc();
@@ -293,11 +296,11 @@ namespace waves
 	private: 
 		void fill(int x, int y, int w, int h, int value)
 		{
-			for (int i = x; i < x + w; ++i)
+			for (int j = y; j < y + h; ++j)
 			{
-				for (int j = y; j < y + h; ++j)
+				for (int i = x; i < x + w; ++i)
 				{
-					auto& item = _medium.at(x, y, 0);
+					auto& item = _medium.at(i, j, 0);
 					item.displacement = value;
 					item.veocity = 0.0f;
 				}
