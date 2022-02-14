@@ -39,8 +39,6 @@ namespace waves
 
 		static constexpr float EDGE_SLOW_DOWN_FACTOR = 0.98;
 
-		static constexpr float INV_SQRT_2 = 0.1;// 0.707106781187f; // 0.1
-
 	private:
 		TMedium _medium;
 
@@ -193,17 +191,17 @@ namespace waves
 
 			uint64_t start = __rdtsc();
 
-			constexpr int xn_yn_z0 = TMedium::offset_for(-1, -1, 0) - TMedium::offset_for(0, 0, 0);
+			//constexpr int xn_yn_z0 = TMedium::offset_for(-1, -1, 0) - TMedium::offset_for(0, 0, 0);
 			constexpr int x0_yn_z0 = TMedium::offset_for(0, -1, 0) - TMedium::offset_for(0, 0, 0);
-			constexpr int xp_yn_z0 = TMedium::offset_for(1, -1, 0) - TMedium::offset_for(0, 0, 0);
+			//constexpr int xp_yn_z0 = TMedium::offset_for(1, -1, 0) - TMedium::offset_for(0, 0, 0);
 
 			constexpr int xn_y0_z0 = TMedium::offset_for(-1, 0, 0) - TMedium::offset_for(0, 0, 0);
 			//constexpr int x0_y0_z0 = TMedium::offset_for(0, 0, 0) - TMedium::offset_for(0, 0, 0);
 			constexpr int xp_y0_z0 = TMedium::offset_for(1, 0, 0) - TMedium::offset_for(0, 0, 0);
 
-			constexpr int xn_yp_z0 = TMedium::offset_for(-1, 1, 0) - TMedium::offset_for(0, 0, 0);
+			//constexpr int xn_yp_z0 = TMedium::offset_for(-1, 1, 0) - TMedium::offset_for(0, 0, 0);
 			constexpr int x0_yp_z0 = TMedium::offset_for(0, 1, 0) - TMedium::offset_for(0, 0, 0);
-			constexpr int xp_yp_z0 = TMedium::offset_for(1, 1, 0) - TMedium::offset_for(0, 0, 0);
+			//constexpr int xp_yp_z0 = TMedium::offset_for(1, 1, 0) - TMedium::offset_for(0, 0, 0);
 
 			concurrency::parallel_for(
 				0, static_cast<int>(TMedium::height() / 8),
@@ -218,16 +216,12 @@ namespace waves
 							int offset = TMedium::offset_for(x, y, 0);
 
 							const float neigh_total =
-								_medium.data[offset + xn_yn_z0].displacement * INV_SQRT_2 +
 								_medium.data[offset + x0_yn_z0].displacement +
-								_medium.data[offset + xp_yn_z0].displacement * INV_SQRT_2 +
 								_medium.data[offset + xn_y0_z0].displacement +
 								_medium.data[offset + xp_y0_z0].displacement +
-								_medium.data[offset + xn_yp_z0].displacement * INV_SQRT_2 +
-								_medium.data[offset + x0_yp_z0].displacement +
-								_medium.data[offset + xp_yp_z0].displacement * INV_SQRT_2;
+								_medium.data[offset + x0_yp_z0].displacement ;
 
-							const float neight_average = neigh_total / (4.0f + 4.0f * INV_SQRT_2);
+							const float neight_average = neigh_total / 4.0f;
 
 							const float delta_x = _medium.data[offset].displacement - neight_average; // displacement relative to the current neightbour average 
 
