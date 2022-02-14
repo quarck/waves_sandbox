@@ -210,7 +210,7 @@ namespace waves
 								current.data[offset + right_neighbour].displacement +
 								current.data[offset + bottom_neighbour].displacement ;
 
-							const float neight_average = neigh_total / 4.0f;
+							const float neight_average = neigh_total * (1.0f / 4.0f);
 
 							const float delta_x = current.data[offset].displacement - neight_average; // displacement relative to the current neightbour average 
 
