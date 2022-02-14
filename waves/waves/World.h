@@ -205,18 +205,18 @@ namespace waves
 							int offset = TMedium::offset_for(x, y, 0);
 
 							const float neigh_total =
-								current.data[offset + top_neighbour].displacement +
-								current.data[offset + left_neighbour].displacement +
-								current.data[offset + right_neighbour].displacement +
-								current.data[offset + bottom_neighbour].displacement ;
+								current.data[offset + top_neighbour].location +
+								current.data[offset + left_neighbour].location +
+								current.data[offset + right_neighbour].location +
+								current.data[offset + bottom_neighbour].location ;
 
 							const float neight_average = neigh_total * (1.0f / 4.0f);
 
-							const float delta_x = current.data[offset].displacement - neight_average; // displacement relative to the current neightbour average 
+							const float delta_x = current.data[offset].location - neight_average; // location relative to the current neightbour average 
 
 							auto new_vel = current.data[offset].veocity - _static.data[offset].velocity_factor * delta_x;
 
-							next.data[offset].displacement = current.data[offset].displacement + new_vel * LOC_FACTOR;
+							next.data[offset].location = current.data[offset].location + new_vel * LOC_FACTOR;
 							next.data[offset].veocity = new_vel * _static.data[offset].resistance_factor;
 						}
 					}
@@ -265,7 +265,7 @@ namespace waves
 				for (int i = x; i < x + w; ++i)
 				{
 					auto& item = medium.at(i, j, 0);
-					item.displacement = value;
+					item.location = value;
 					item.veocity = 0.0f;
 				}
 			}

@@ -6,7 +6,7 @@ namespace waves
 {
 	struct Item
 	{
-		float displacement;
+		float location;
 		float veocity;
 	};
 

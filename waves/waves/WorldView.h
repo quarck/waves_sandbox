@@ -168,7 +168,7 @@ namespace waves
 			{
 				for (int y = 0; y < medium.height(); ++y)
 				{
-					auto v = medium.at(x, y, 0).displacement;
+					auto v = medium.at(x, y, 0).location;
 
 					glPushMatrix();
 
