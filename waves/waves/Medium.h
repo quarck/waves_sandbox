@@ -4,17 +4,19 @@
 
 namespace waves
 {
-	template <typename TValue=float>
 	struct Item
 	{
-		TValue displacement;
-		TValue veocity;
-		TValue velocity_factor;
-		TValue resistance_factor;
+		float displacement;
+		float veocity;
 	};
 
+	struct ItemStatic
+	{
+		float velocity_factor;
+		float resistance_factor;
+	};
 
-	template <int W, int H, int D, typename TItem=Item<float>, int GUARD_SIZE = 4>
+	template <int W, int H, int D, typename TItem=Item, int GUARD_SIZE = 4>
 	struct Medium
 	{
 		static_assert(W % 16 == 0);
