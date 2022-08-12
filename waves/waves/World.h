@@ -41,6 +41,9 @@ namespace waves
 		static constexpr float EDGE_SLOW_DOWN_FACTOR = 0.98;
 
 	private:
+
+		ThreadGrid _grid{ 6 };
+
 		TMediumStatic _static;
 		std::array<TMedium, 2> _mediums;
 
@@ -85,28 +88,28 @@ namespace waves
 
 						if (x < thickness)
 						{
-							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - x);
+							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - x);
 						}
 						else if (x >= TMedium::width() - thickness)
 						{
-							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, x - (TMedium::width() - thickness));
+							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, x - (TMedium::width() - thickness));
 						}
 						if (y < thickness)
 						{
-							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - y);
+							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - y);
 						}
 						else if (y >= TMedium::height() - thickness)
 						{
-							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - thickness));
+							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - thickness));
 						}
 
 						if (z < thickness)
 						{
-							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - z);
+							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - z);
 						}
 						else if (z >= TMedium::depth() - thickness)
 						{
-							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, z - (TMedium::depth() - thickness));
+							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, z - (TMedium::depth() - thickness));
 						}
 					}
 				}
@@ -131,12 +134,12 @@ namespace waves
 
 						if (dist_centre < 122.0)
 						{
-							medium.data[offset].velocity_factor = VEL_FACTOR2;
+							medium.data[offset].velocity_bit = 1; // = VEL_FACTOR2;
 						}
 						else
-							medium.data[offset].velocity_factor = VEL_FACTOR1;
+							medium.data[offset].velocity_bit = 0;// = VEL_FACTOR1;
 
-						medium.data[offset].resistance_factor = 1.0;
+						medium.data[offset].resistance = 127;
 					}
 				}
 			}
@@ -155,11 +158,11 @@ namespace waves
 						int offset = TMedium::offset_for(x, y, z);
 
 						if (x < 350.0f && (std::pow(x - 350.0f, 2.0f) + std::pow(y - 256.0f, 2.0f) + std::pow(z - 256.0f, 2.0f)) < 15000.0f)
-							medium.data[offset].velocity_factor = VEL_FACTOR2;
+							medium.data[offset].velocity_bit = 1;// VEL_FACTOR2;
 						else
-							medium.data[offset].velocity_factor = VEL_FACTOR1;
+							medium.data[offset].velocity_bit = 0; // VEL_FACTOR1;
 
-						medium.data[offset].resistance_factor = 1.0;
+						medium.data[offset].resistance = 127;
 
 						float yz_r = std::sqrt(std::pow(y-256.0f, 2.0f) + std::pow(z - 256.0f, 2.0f));
 						if (yz_r > 90)
@@ -167,7 +170,7 @@ namespace waves
 							if (x > 270 && x < 350)
 							{
 								int d = std::abs(x - 310);
-								medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 40 - d);
+								medium.data[offset].resistance = 127.0 * std::pow(EDGE_SLOW_DOWN_FACTOR, 40 - d);
 							}
 						}
 					}
@@ -218,13 +221,19 @@ namespace waves
 			constexpr int zd_neighbour = TMedium::offset_for(0, 0, -1) - TMedium::offset_for(0, 0, 0);
 			constexpr int zu_neighbour = TMedium::offset_for(0, 0, 1) - TMedium::offset_for(0, 0, 0);
 
-			concurrency::parallel_for(
-				0, static_cast<int>(TMedium::depth() / 32),
-				[&](int Z_big)
+			_grid.GridRun(
+			//concurrency::parallel_for(
+				//0, static_cast<int>(TMedium::depth() / 32),
+				//[&](int Z_big)
+				[&](int thread_idx, int num_threads)
 				{
-					for (int sub_z = 0; sub_z < 32; ++sub_z)
+					int slice = TMedium::depth() / num_threads;
+					int from = thread_idx * slice;
+					int to = (thread_idx + 1) * slice;
+
+					for (int z = from; z < to; ++z)
 					{
-						const int z = Z_big * 32 + sub_z;
+						//const int z = Z_big * 32 + sub_z;
 
 						for (int y = 0; y < TMedium::height(); ++ y)
 						{
@@ -244,10 +253,15 @@ namespace waves
 
 								const float delta_x = current.data[offset].location - neight_average; // location relative to the current neightbour average 
 
-								auto new_vel = current.data[offset].veocity - _static.data[offset].velocity_factor * delta_x;
+								auto item_static = _static.data[offset];
+
+								const float velolicty_factor = item_static.velocity_bit ? VEL_FACTOR2 : VEL_FACTOR1;
+								const float resistance_factor = static_cast<float>(item_static.resistance) / 127.0f;
+
+								auto new_vel = current.data[offset].veocity - velolicty_factor * delta_x;
 
 								next.data[offset].location = current.data[offset].location + new_vel * LOC_FACTOR;
-								next.data[offset].veocity = new_vel * _static.data[offset].resistance_factor;
+								next.data[offset].veocity = new_vel * resistance_factor;
 							}
 						}
 					}

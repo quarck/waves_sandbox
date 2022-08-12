@@ -12,9 +12,10 @@ namespace waves
 
 	struct ItemStatic
 	{
-		float velocity_factor;
-		float resistance_factor;
+		uint8_t velocity_bit : 1;
+		uint8_t resistance : 7;
 	};
+	static_assert(sizeof(ItemStatic) == 1);
 
 	template <int W, int H, int D, typename TItem=Item, int GUARD_SIZE = 4>
 	struct Medium

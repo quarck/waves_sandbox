@@ -167,7 +167,11 @@ namespace waves
 			{
 				for (int y = 0; y < medium.height(); ++y)
 				{
-					auto v = medium.at(x, y, medium.depth() / 2).location;
+					auto& item = medium.at(x, y, medium.depth() / 2);
+
+					auto v = item.location;
+
+					bool empty = (item.location == 0) && (item.veocity == 0);
 
 					glPushMatrix();
 
@@ -178,10 +182,17 @@ namespace waves
 
 					glBegin(GL_TRIANGLES);
 
-					float brightness_p = std::max(0.0f, std::min(1.0f, v / 1000.0f));
-					float brightness_n = std::max(0.0f, std::min(1.0f, -v / 1000.0f)) / 4.0f;
+					float brightness_p = std::max(0.0f, std::min(1.0f, v / 10.0f));
+					float brightness_n = std::max(0.0f, std::min(1.0f, -v / 10.0f)) / 4.0f;
 
-					glColor3f(brightness_p, std::max(0.0f, 3.0f* brightness_p - 2.0f), brightness_n);
+					if (!empty)
+					{
+						glColor3f(brightness_p, std::max(0.0f, 3.0f * brightness_p - 2.0f), brightness_n);
+					}
+					else
+					{
+						glColor3f(0.5f, 0.5f, 0.0f);
+					}
 
 					int idx = 0;
 

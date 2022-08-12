@@ -221,17 +221,29 @@ namespace waves
 				{
 					for (int z = 0; z < medium.depth(); ++z)
 					{
-						int32_t v = (int32_t)(medium.at(x, y, z).location / 4);
+						auto& item = medium.at(x, y, z);
+						bool empty = (item.location == 0) && (item.veocity == 0);
+						int32_t v = (int32_t)(item.location * 8);
 
 						int32_t brightness_p_256 = std::max(0,  std::min(255, v));
 						int32_t brightness_n_256 = std::max(0, std::min(64, - v / 4));
 
 						uint32_t offs =  4 * (y * medium.depth() + z) ;
 
-						data[offs] = brightness_p_256;
-						data[offs+1] = std::max(0, 3 * brightness_p_256 - 512);
-						data[offs + 2] = brightness_n_256;
-						data[offs + 3] = 255;
+						if (!empty)
+						{
+							data[offs] = brightness_p_256;
+							data[offs + 1] = std::max(0, 3 * brightness_p_256 - 512);
+							data[offs + 2] = brightness_n_256;
+							data[offs + 3] = 255;
+						}
+						else
+						{
+							data[offs] = 127;
+							data[offs + 1] = 127;
+							data[offs + 2] = 0;
+							data[offs + 3] = 255;
+						}
 					}
 				}
 
