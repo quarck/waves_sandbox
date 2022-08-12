@@ -22,5 +22,12 @@ public:
 	void onViewportResize(int widht, int height) override;
 	void onNewFrame() override;
 
+	inline std::vector<unsigned char>& data()
+	{
+		return _pixels;
+	}
+
+	void recordOrthogonalFrame(uint64_t plane_seq);
+
 };
 

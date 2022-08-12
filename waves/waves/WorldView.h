@@ -21,8 +21,8 @@ namespace waves
 		int numActiveThreads;
 		bool showDetailedcontrols;
 		bool paused;
-		uint64_t clocks_first_half{ 0 };
-		uint64_t clocks_second_half{ 0 };
+		uint64_t clocks_per_iter{ 0 };
+		uint64_t clocks_per_iter_per_voxel{ 0 };
 
 		WorldViewDetails(int nThr, bool p) 
 			: numActiveThreads{ nThr }
@@ -89,8 +89,7 @@ namespace waves
 			glPixelZoom(1.f, 1.f);
 
 			std::ostringstream rcfg;
-			rcfg << "perf: " << details.clocks_first_half/1000 << "k / " << details.clocks_second_half/1000 << "k = " << (
-				details.clocks_first_half + details.clocks_second_half)/1000 << "k";
+			rcfg << "perf: " << details.clocks_per_iter / 1000000 << "M clk/iter " << details.clocks_per_iter_per_voxel << " clk/iter/voxel ";
 
 			_iterAndCfgLabel.Update(
 				LABELS_BACKGROUND,
@@ -168,7 +167,7 @@ namespace waves
 			{
 				for (int y = 0; y < medium.height(); ++y)
 				{
-					auto v = medium.at(x, y, 0).location;
+					auto v = medium.at(x, y, medium.depth() / 2).location;
 
 					glPushMatrix();
 

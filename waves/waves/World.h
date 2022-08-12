@@ -31,12 +31,12 @@ namespace waves
     class World
     {
 	public:
-		using TMedium = Medium<512 + 256, 512, 1>;
-		using TMediumStatic = Medium<512 + 256, 512, 1, ItemStatic>;
+		using TMedium = Medium<512 + 256, 512, 512>;
+		using TMediumStatic = Medium<512 + 256, 512, 512, ItemStatic>;
 
-		static constexpr float VEL_FACTOR1 = 0.40; // dV = -k*x/m * dT, this is k*dT/m
-		static constexpr float VEL_FACTOR2 = 0.13; // dV = -k*x/m * dT, this is k*dT/m
-		static constexpr float LOC_FACTOR = 0.1; // dX = V * dT, this is dT
+		static constexpr float VEL_FACTOR1 = 0.40 ; // dV = -k*x/m * dT, this is k*dT/m
+		static constexpr float VEL_FACTOR2 = 0.13 ; // dV = -k*x/m * dT, this is k*dT/m
+		static constexpr float LOC_FACTOR = 0.1 ; // dX = V * dT, this is dT
 
 		static constexpr float EDGE_SLOW_DOWN_FACTOR = 0.98;
 
@@ -47,8 +47,7 @@ namespace waves
         Random _random{};
 		uint64_t _iteration{ 0 };
 
-		uint64_t first_half_clocks{ 0 };
-		uint64_t second_half_clocks{ 0 };
+		uint64_t elapsed_cpu_clocks{ 0 };
 
 		std::array<std::atomic_bool, 3> light_enabled { true, true, true };
 
@@ -76,27 +75,39 @@ namespace waves
 
 		static void load_scene_edges(TMediumStatic& medium, int thickness)
 		{
-			for (int x = 0; x < TMedium::width(); ++x)
+			for (int z = 0; z < TMedium::depth(); ++z)
 			{
-				for (int y = 0; y < TMedium::height(); ++y)
+				for (int x = 0; x < TMedium::width(); ++x)
 				{
-					int offset = TMedium::offset_for(x, y, 0);
+					for (int y = 0; y < TMedium::height(); ++y)
+					{
+						int offset = TMedium::offset_for(x, y, z);
 
-					if (x < thickness)
-					{
-						medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - x);
-					}
-					else if (x >= TMedium::width() - thickness)
-					{
-						medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, x - (TMedium::width() - thickness));
-					}
-					if (y < thickness)
-					{
-						medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - y);
-					}
-					else if (y >= TMedium::height() - thickness)
-					{
-						medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - thickness));
+						if (x < thickness)
+						{
+							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - x);
+						}
+						else if (x >= TMedium::width() - thickness)
+						{
+							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, x - (TMedium::width() - thickness));
+						}
+						if (y < thickness)
+						{
+							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - y);
+						}
+						else if (y >= TMedium::height() - thickness)
+						{
+							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - thickness));
+						}
+
+						if (z < thickness)
+						{
+							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, thickness - z);
+						}
+						else if (z >= TMedium::depth() - thickness)
+						{
+							medium.data[offset].resistance_factor *= std::pow(EDGE_SLOW_DOWN_FACTOR, z - (TMedium::depth() - thickness));
+						}
 					}
 				}
 			}
@@ -104,22 +115,29 @@ namespace waves
 
 		static void load_scene1(TMediumStatic& medium)
 		{
-			for (int x = 0; x < TMedium::width(); ++x)
+			for (int z = 0; z < TMedium::depth(); ++z)
 			{
-				for (int y = 0; y < TMedium::height(); ++y)
+				for (int x = 0; x < TMedium::width(); ++x)
 				{
-					int offset = TMedium::offset_for(x, y, 0);
-
-					auto dist_centre = std::sqrt(std::pow(x - 256.0f, 2.0f) + std::pow(y - 256.0f, 2.0f));
-
-					if (dist_centre < 122.0)
+					for (int y = 0; y < TMedium::height(); ++y)
 					{
-						medium.data[offset].velocity_factor = VEL_FACTOR2;
-					}
-					else
-						medium.data[offset].velocity_factor = VEL_FACTOR1;
+						int offset = TMedium::offset_for(x, y, z);
 
-					medium.data[offset].resistance_factor = 1.0;
+						auto dist_centre = std::sqrt(
+							std::pow(x - 256.0f, 2.0f) + 
+							std::pow(y - 256.0f, 2.0f) + 
+							std::pow(z - 256.0f, 2.0f) 
+						);
+
+						if (dist_centre < 122.0)
+						{
+							medium.data[offset].velocity_factor = VEL_FACTOR2;
+						}
+						else
+							medium.data[offset].velocity_factor = VEL_FACTOR1;
+
+						medium.data[offset].resistance_factor = 1.0;
+					}
 				}
 			}
 
@@ -128,25 +146,29 @@ namespace waves
 
 		static void load_scene0(TMediumStatic& medium)
 		{
-			for (int x = 0; x < TMedium::width(); ++x)
+			for (int z = 0; z < TMedium::depth(); ++z)
 			{
-				for (int y = 0; y < TMedium::height(); ++y)
+				for (int x = 0; x < TMedium::width(); ++x)
 				{
-					int offset = TMedium::offset_for(x, y, 0);
-
-					if (x < 350.0f && (std::pow(x - 350.0f, 2.0f) + std::pow(y - 256.0f, 2.0f)) < 15000.0f)
-						medium.data[offset].velocity_factor = VEL_FACTOR2;
-					else
-						medium.data[offset].velocity_factor = VEL_FACTOR1;
-
-					medium.data[offset].resistance_factor = 1.0;
-					
-					if (y > 256 + 90 || y < 256 - 90)
+					for (int y = 0; y < TMedium::height(); ++y)
 					{
-						if (x > 270 && x < 350)
+						int offset = TMedium::offset_for(x, y, z);
+
+						if (x < 350.0f && (std::pow(x - 350.0f, 2.0f) + std::pow(y - 256.0f, 2.0f) + std::pow(z - 256.0f, 2.0f)) < 15000.0f)
+							medium.data[offset].velocity_factor = VEL_FACTOR2;
+						else
+							medium.data[offset].velocity_factor = VEL_FACTOR1;
+
+						medium.data[offset].resistance_factor = 1.0;
+
+						float yz_r = std::sqrt(std::pow(y-256.0f, 2.0f) + std::pow(z - 256.0f, 2.0f));
+						if (yz_r > 90)
 						{
-							int d = std::abs(x - 310);
-							medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 40 - d);
+							if (x > 270 && x < 350)
+							{
+								int d = std::abs(x - 310);
+								medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 40 - d);
+							}
 						}
 					}
 				}
@@ -168,56 +190,65 @@ namespace waves
 			{
 				int fill_value = ((_iteration % 70) > 35) ? 3000 : -3000;
 				if (light_enabled[0])
-					fill(current, 75, 154, 5, 5, fill_value);
+					fill(current, 75, 154, TMedium::depth() / 2 - 2, 5, 5, 5, fill_value);
 				if (light_enabled[1])
-					fill(current, 58, 254, 5, 5, fill_value);
+					fill(current, 58, 254, TMedium::depth() / 2 - 2, 5, 5, 5, fill_value);
 				if (light_enabled[2])
-					fill(current, 75, 354, 5, 5, fill_value);
+					fill(current, 75, 354, TMedium::depth() / 2 - 2, 5, 5, 5, fill_value);
 			}
 			else
 			{
 				int fill_value = ((_iteration % 70) > 35) ? 3000 : -3000;
 				if (light_enabled[0])
-					fill(current, 38, 154, 5, 5, fill_value);
+					fill(current, 38, 154, TMedium::depth() / 2 - 2, 5, 5, 5, fill_value);
 				if (light_enabled[1])
-					fill(current, 38, 254, 5, 5, fill_value);
+					fill(current, 38, 254, TMedium::depth() / 2 - 2, 5, 5, 5, fill_value);
 				if (light_enabled[2])
-					fill(current, 38, 354, 5, 5, fill_value);
+					fill(current, 38, 354, TMedium::depth() / 2 - 2, 5, 5, 5, fill_value);
 			}
 
 			uint64_t start = __rdtsc();
 
-			constexpr int top_neighbour = TMedium::offset_for(0, -1, 0) - TMedium::offset_for(0, 0, 0);
-			constexpr int left_neighbour = TMedium::offset_for(-1, 0, 0) - TMedium::offset_for(0, 0, 0);
-			constexpr int right_neighbour = TMedium::offset_for(1, 0, 0) - TMedium::offset_for(0, 0, 0);
-			constexpr int bottom_neighbour = TMedium::offset_for(0, 1, 0) - TMedium::offset_for(0, 0, 0);
+			constexpr int xd_neighbour = TMedium::offset_for(-1, 0, 0) - TMedium::offset_for(0, 0, 0);
+			constexpr int xu_neighbour = TMedium::offset_for(1, 0, 0) - TMedium::offset_for(0, 0, 0);
+
+			constexpr int yd_neighbour = TMedium::offset_for(0, -1, 0) - TMedium::offset_for(0, 0, 0);
+			constexpr int yu_neighbour = TMedium::offset_for(0, 1, 0) - TMedium::offset_for(0, 0, 0);
+
+			constexpr int zd_neighbour = TMedium::offset_for(0, 0, -1) - TMedium::offset_for(0, 0, 0);
+			constexpr int zu_neighbour = TMedium::offset_for(0, 0, 1) - TMedium::offset_for(0, 0, 0);
 
 			concurrency::parallel_for(
-				0, static_cast<int>(TMedium::height() / 8),
-				[&](int Y_big)
+				0, static_cast<int>(TMedium::depth() / 32),
+				[&](int Z_big)
 				{
-					for (int sub_y = 0; sub_y < 8; ++sub_y)
+					for (int sub_z = 0; sub_z < 32; ++sub_z)
 					{
-						const int y = Y_big * 8 + sub_y;
+						const int z = Z_big * 32 + sub_z;
 
-						for (int x = 0; x < TMedium::width(); ++x)
+						for (int y = 0; y < TMedium::height(); ++ y)
 						{
-							int offset = TMedium::offset_for(x, y, 0);
+							for (int x = 0; x < TMedium::width(); ++x)
+							{
+								int offset = TMedium::offset_for(x, y, z);
 
-							const float neigh_total =
-								current.data[offset + top_neighbour].location +
-								current.data[offset + left_neighbour].location +
-								current.data[offset + right_neighbour].location +
-								current.data[offset + bottom_neighbour].location ;
+								const float neigh_total =
+									current.data[offset + xd_neighbour].location +
+									current.data[offset + xu_neighbour].location +
+									current.data[offset + yd_neighbour].location +
+									current.data[offset + yu_neighbour].location +
+									current.data[offset + zd_neighbour].location +
+									current.data[offset + zu_neighbour].location;
 
-							const float neight_average = neigh_total * (1.0f / 4.0f);
+								const float neight_average = neigh_total * (1.0f / 6.0f);
 
-							const float delta_x = current.data[offset].location - neight_average; // location relative to the current neightbour average 
+								const float delta_x = current.data[offset].location - neight_average; // location relative to the current neightbour average 
 
-							auto new_vel = current.data[offset].veocity - _static.data[offset].velocity_factor * delta_x;
+								auto new_vel = current.data[offset].veocity - _static.data[offset].velocity_factor * delta_x;
 
-							next.data[offset].location = current.data[offset].location + new_vel * LOC_FACTOR;
-							next.data[offset].veocity = new_vel * _static.data[offset].resistance_factor;
+								next.data[offset].location = current.data[offset].location + new_vel * LOC_FACTOR;
+								next.data[offset].veocity = new_vel * _static.data[offset].resistance_factor;
+							}
 						}
 					}
 				}
@@ -225,8 +256,7 @@ namespace waves
 
 			uint64_t end = __rdtsc();
 
-			first_half_clocks += end- start;
-			//second_half_clocks += 0;
+			elapsed_cpu_clocks += end- start;
 
 			_iteration++;
 			return true;
@@ -241,12 +271,15 @@ namespace waves
 		const TMedium& get_data() const { return _mediums[_iteration % 2]; }
 
 
-		const std::tuple<uint64_t, uint64_t> get_perf_stats()
+		const std::tuple<uint64_t, uint64_t> get_clocks_per_iter()
 		{
 			if (_iteration == 0)
 				return { 0, 0 };
 
-			return { first_half_clocks / _iteration, second_half_clocks / _iteration };
+			uint64_t clocks_per_iter{ elapsed_cpu_clocks / _iteration };
+			uint64_t clocks_per_iter_per_voxel{ clocks_per_iter / (TMedium::depth() * TMedium::width() * TMedium::height()) };
+
+			return { clocks_per_iter, clocks_per_iter_per_voxel };
 		}
 
 		void toggle_light(int idx)
@@ -258,15 +291,18 @@ namespace waves
 		}
 
 	private: 
-		static void fill(TMedium& medium, int x, int y, int w, int h, int value)
+		static void fill(TMedium& medium, int x, int y, int z, int w, int h, int d, int value)
 		{
-			for (int j = y; j < y + h; ++j)
+			for (int k = z; k < z + d; ++k)
 			{
-				for (int i = x; i < x + w; ++i)
+				for (int j = y; j < y + h; ++j)
 				{
-					auto& item = medium.at(i, j, 0);
-					item.location = value;
-					item.veocity = 0.0f;
+					for (int i = x; i < x + w; ++i)
+					{
+						auto& item = medium.at(i, j, k);
+						item.location = value;
+						item.veocity = 0.0f;
+					}
 				}
 			}
 		}

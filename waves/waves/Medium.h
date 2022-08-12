@@ -21,14 +21,14 @@ namespace waves
 	{
 		static_assert(W % 16 == 0);
 		static_assert(H % 16 == 0);
-		//static_assert(D % 16 == 0);
-		static_assert(D == 1);
+		static_assert(D % 16 == 0);
+		//static_assert(D == 1);
 
 		static_assert(GUARD_SIZE > 0);
 
 		static constexpr int W_GUARD = GUARD_SIZE;
 		static constexpr int H_GUARD = GUARD_SIZE;
-		static constexpr int D_GUARD = 0; // no Z at the moment
+		static constexpr int D_GUARD = GUARD_SIZE;
 
 		static constexpr int alloc_width = W + 2 * W_GUARD;
 		static constexpr int alloc_height = H + 2 * H_GUARD;

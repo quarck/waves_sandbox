@@ -55,3 +55,21 @@ void PngLogger::onNewFrame()
 
 	lodepng::encode(name.c_str(), _pixelsFlipped.data(), _vpWidth, _vpHeight);
 }
+
+void PngLogger::recordOrthogonalFrame(uint64_t plane_seq)
+{	
+	// BMP is a weird one, stored in a reverse order
+	for (int row = 0; row < _vpHeight; ++row)
+	{
+		unsigned char* src_row = &_pixels[row * _vpWidth * 4]; // src img is RGBA
+		unsigned char* dst_row = &_pixelsFlipped[(_vpHeight - row - 1) * _vpWidth * 4]; // src img is RGBA
+		::memcpy(dst_row, src_row, _vpWidth * 4);
+	}
+
+	// todo: format the name with leading zeroes
+	std::ostringstream str;
+	str << _logFolder << "\\" << std::setw(8) << std::setfill('0') << plane_seq << ".png";
+	std::string name = str.str();
+
+	lodepng::encode(name.c_str(), _pixelsFlipped.data(), _vpWidth, _vpHeight);
+}

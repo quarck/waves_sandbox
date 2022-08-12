@@ -143,19 +143,19 @@ namespace waves
 					}
 				}
 
-				if (world.current_iteration() % 64 == 0)
+				//if (world.current_iteration() % 64 == 0)
 				{
 					auto now = std::chrono::high_resolution_clock::now();
 					std::chrono::duration<double> sinceLastUpdate = std::chrono::duration_cast<std::chrono::duration<double>>(now - lastUIUpdate);
 
-					if (sinceLastUpdate.count() > 1.0 / 30.0 || recording)
+					if (sinceLastUpdate.count() > 1.0 / 30 || recording)
 					{						
 						lastUIUpdate = now;
 						last_update_at = world.current_iteration();
 
-						auto [f, s] = world.get_perf_stats();
-						viewDetails.clocks_first_half = f;
-						viewDetails.clocks_second_half = s;
+						auto [pp, ppv] = world.get_clocks_per_iter();
+						viewDetails.clocks_per_iter = pp;
+						viewDetails.clocks_per_iter_per_voxel = ppv;
 
 						uiNeedsUpdate = true;
 						::SendMessage(hWND, WM_USER, 0, 0);
@@ -183,6 +183,60 @@ namespace waves
 			_vpHeight = height;
 			if (_imageLogger)
 				_imageLogger->onViewportResize(width, height);
+		}
+
+		void onTakePicture()
+		{
+			WCHAR file[MAX_PATH] = _T("");
+
+			BROWSEINFO bi;
+			ZeroMemory(&bi, sizeof(bi));
+			bi.hwndOwner = hWND;
+			bi.lpszTitle = _T("Select folder to save");
+			bi.ulFlags = 0; // check it 
+
+			LPITEMIDLIST lpItem = SHBrowseForFolder(&bi);
+			if (lpItem == NULL)
+				return;
+
+			SHGetPathFromIDList(lpItem, file);
+
+			char mbsFolder[MAX_PATH * 4];
+			size_t nc = ::wcstombs(mbsFolder, file, MAX_PATH * 4 - 1);
+			if (!(nc > 0 && nc < MAX_PATH * 4))
+				return;
+
+			auto logger = std::make_unique<PngLogger>(mbsFolder);
+
+			std::lock_guard<std::mutex> l(worldLock);
+
+			const auto& medium = world.get_data();
+			logger->onViewportResize(medium.height(), medium.depth());
+
+			for (int x = 0; x < medium.width(); ++x)
+			{
+				auto& data = logger->data();
+
+				for (int y = 0; y < medium.height(); ++y)
+				{
+					for (int z = 0; z < medium.depth(); ++z)
+					{
+						int32_t v = (int32_t)(medium.at(x, y, z).location / 4);
+
+						int32_t brightness_p_256 = std::max(0,  std::min(255, v));
+						int32_t brightness_n_256 = std::max(0, std::min(64, - v / 4));
+
+						uint32_t offs =  4 * (y * medium.depth() + z) ;
+
+						data[offs] = brightness_p_256;
+						data[offs+1] = std::max(0, 3 * brightness_p_256 - 512);
+						data[offs + 2] = brightness_n_256;
+						data[offs + 3] = 255;
+					}
+				}
+
+				logger->recordOrthogonalFrame(x);
+			}
 		}
 
 		void onToggleScreenRecording()
@@ -241,8 +295,12 @@ namespace waves
 				onSave();
 				break;
 
-			case 'L': case 'l': 
-				onLoad();
+			//case 'L': case 'l': 
+			//	onLoad();
+			//	break;
+
+			case 'P': case 'p': 
+				onTakePicture();
 				break;
 
 			//case 'c': case 'C': 
