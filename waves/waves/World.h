@@ -157,7 +157,7 @@ namespace waves
 					{
 						int offset = TMedium::offset_for(x, y, z);
 
-						if (x < 350.0f 
+						if (x < 275.0f 
 							&& (
 								std::pow(x - 350.0f, 2.0f) + 
 								std::pow(y - 256.0f, 2.0f) + 
@@ -173,10 +173,10 @@ namespace waves
 						float yz_r = std::sqrt(std::pow(y-256.0f, 2.0f) + std::pow(z - 256.0f, 2.0f));
 						if (yz_r > 90)
 						{
-							if (x > 270 && x < 350)
+							if (x > 270 && x < 280)
 							{
-								int d = std::abs(x - 310);
-								medium.data[offset].resistance = 127.0 * std::pow(EDGE_SLOW_DOWN_FACTOR, 40 - d);
+								int i = std::abs(x - 275) + 2;
+								medium.data[offset].resistance = 127.0 * std::pow(EDGE_SLOW_DOWN_FACTOR, i);
 							}
 						}
 					}
