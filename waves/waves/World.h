@@ -157,7 +157,13 @@ namespace waves
 					{
 						int offset = TMedium::offset_for(x, y, z);
 
-						if (x < 350.0f && (std::pow(x - 350.0f, 2.0f) + std::pow(y - 256.0f, 2.0f) + std::pow(z - 256.0f, 2.0f)) < 15000.0f)
+						if (x < 350.0f 
+							&& (
+								std::pow(x - 350.0f, 2.0f) + 
+								std::pow(y - 256.0f, 2.0f) + 
+								std::pow(z - 256.0f, 2.0f)) < 
+									std::pow(123.0f, 2.0)
+							)
 							medium.data[offset].velocity_bit = 1;// VEL_FACTOR2;
 						else
 							medium.data[offset].velocity_bit = 0; // VEL_FACTOR1;
