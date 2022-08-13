@@ -222,7 +222,7 @@ namespace waves
 					for (int z = 0; z < medium.depth(); ++z)
 					{
 						auto& item = medium.at(x, y, z);
-						bool empty = (item.location == 0) && (item.veocity == 0);
+						bool empty = (item.location == 0) && (item.velocity == 0);
 						int32_t v = (int32_t)(item.location * 8);
 
 						int32_t brightness_p_256 = std::max(0,  std::min(255, v));

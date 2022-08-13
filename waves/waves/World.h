@@ -258,10 +258,10 @@ namespace waves
 								const float velolicty_factor = item_static.velocity_bit ? VEL_FACTOR2 : VEL_FACTOR1;
 								const float resistance_factor = static_cast<float>(item_static.resistance) / 127.0f;
 
-								auto new_vel = current.data[offset].veocity - velolicty_factor * delta_x;
+								auto new_velocity = (current.data[offset].velocity - velolicty_factor * delta_x) * resistance_factor;
 
-								next.data[offset].location = current.data[offset].location + new_vel * LOC_FACTOR;
-								next.data[offset].veocity = new_vel * resistance_factor;
+								next.data[offset].location = current.data[offset].location + new_velocity * LOC_FACTOR;
+								next.data[offset].velocity = new_velocity;
 							}
 						}
 					}
@@ -315,7 +315,7 @@ namespace waves
 					{
 						auto& item = medium.at(i, j, k);
 						item.location = value;
-						item.veocity = 0.0f;
+						item.velocity = 0.0f;
 					}
 				}
 			}

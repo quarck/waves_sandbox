@@ -7,7 +7,7 @@ namespace waves
 	struct Item
 	{
 		float location;
-		float veocity;
+		float velocity;
 	};
 
 	struct ItemStatic

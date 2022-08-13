@@ -171,7 +171,7 @@ namespace waves
 
 					auto v = item.location;
 
-					bool empty = (item.location == 0) && (item.veocity == 0);
+					bool empty = (item.location == 0) && (item.velocity == 0);
 
 					glPushMatrix();
 
