@@ -134,7 +134,7 @@ namespace waves
 				{
 					int offset = TMedium::offset_for(x, y, 0);
 
-					if (x < 350.0f && (std::pow(x - 350.0f, 2.0f) + std::pow(y - 256.0f, 2.0f)) < 15000.0f)
+					if (x < 275.0f && (std::pow(x - 350.0f, 2.0f) + std::pow(y - 256.0f, 2.0f)) < 15000.0f)
 						medium.data[offset].velocity_factor = VEL_FACTOR2;
 					else
 						medium.data[offset].velocity_factor = VEL_FACTOR1;
@@ -143,10 +143,10 @@ namespace waves
 					
 					if (y > 256 + 90 || y < 256 - 90)
 					{
-						if (x > 270 && x < 350)
+						if (x > 270 && x < 280)
 						{
-							int d = std::abs(x - 310);
-							medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, 40 - d);
+							int i = std::abs(x - 275) + 2;
+							medium.data[offset].resistance_factor = std::pow(EDGE_SLOW_DOWN_FACTOR, i);
 						}
 					}
 				}
@@ -214,10 +214,10 @@ namespace waves
 
 							const float delta_x = current.data[offset].location - neight_average; // location relative to the current neightbour average 
 
-							auto new_vel = current.data[offset].veocity - _static.data[offset].velocity_factor * delta_x;
+							auto new_vel = (current.data[offset].veocity - _static.data[offset].velocity_factor * delta_x) * _static.data[offset].resistance_factor;
 
 							next.data[offset].location = current.data[offset].location + new_vel * LOC_FACTOR;
-							next.data[offset].veocity = new_vel * _static.data[offset].resistance_factor;
+							next.data[offset].veocity = new_vel;
 						}
 					}
 				}
