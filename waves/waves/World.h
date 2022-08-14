@@ -26,6 +26,7 @@
 
 #include "Log.h"
 #include "PngLogger.h"
+#include "lodepng.h"
 
 namespace waves
 { 
@@ -35,8 +36,13 @@ namespace waves
 		using TMedium = Medium<432, 240, 240>;
 		using TMediumStatic = Medium<TMedium::width(), TMedium::height(), TMedium::depth(), ItemStatic>;
 
-		using TSrcPictureMedium = Medium<8, TMedium::height(), TMedium::depth(), float, 0, true>;
-		using TPictureMedium = Medium<20, TMedium::height(), TMedium::depth(), float, 0, true>;
+		using TMediumPatternStatic = Medium<1, TMedium::height(), TMedium::depth(), float, 0, true>;
+
+		// a temp object used to calculate resistance/conductivity with higher precision
+		using TMediumCondStatic = Medium<TMedium::width(), TMedium::height(), TMedium::depth(), float>;
+
+		using TSrcPictureMedium = Medium<1, TMedium::height(), TMedium::depth(), float, 0, true>;
+		using TPictureMedium = Medium<40, TMedium::height(), TMedium::depth(), float, 0, true>;
 
 		static constexpr float VEL_FACTOR1 = 0.40 ; // dV = -k*x/m * dT, this is k*dT/m
 		static constexpr float VEL_FACTOR2 = 0.2; // 0.13; // dV = -k*x/m * dT, this is k*dT/m
@@ -46,10 +52,16 @@ namespace waves
 
 		static constexpr int SOURCE_X = 11;
 
-		static constexpr int PIC_SRC_BASE = SOURCE_X-2;
-		static constexpr int PIC_BASE = 220;
+		static constexpr int PIC_SRC_BASE = SOURCE_X;
+		static constexpr int PIC_BASE = 210;
+
+		static constexpr float FILL_VALUE = 500.0f;
 
 	private:
+
+		bool _initialized{ false };
+
+		TMediumPatternStatic _pattern{};
 
 		ThreadGrid _grid{ 8 };
 
@@ -69,13 +81,70 @@ namespace waves
 		uint64_t _exposition{ 0 };
 
 	public:
-        World(int scene)
+        World()
         {	
-			load_scene0(_static);
+			load_scene(_static);
 		}
 
 		~World()
 		{
+		}
+
+		bool initialized() const noexcept
+		{
+			return _initialized;
+		}
+
+		void initialize(const std::string& pattern_file_name)
+		{
+			const int32_t R = std::min(_pattern.depth(), _pattern.height()) / 2 - 5;
+			const int32_t RSqr = R * R;
+
+			for (int z = 0; z < _pattern.depth(); ++z)
+			{
+				for (int y = 0; y < _pattern.height(); ++y)
+				{
+					const float dz = z - _pattern.depth() / 2.0f;
+					const float dy = y - _pattern.height() / 2.0f;
+
+					auto dSqr = dz * dz + dy * dy;
+					if (dSqr <= RSqr)
+					{
+						_pattern.at(0, y, z) = FILL_VALUE;
+					}
+					else
+					{
+						_pattern.at(0, y, z) = FILL_VALUE / (dSqr - RSqr);
+					}
+				}
+			}
+
+			_initialized = true; // one way or another, proceed
+
+			if (pattern_file_name != "")
+			{
+				std::vector<unsigned char> data;
+				unsigned width;
+				unsigned height;
+				if (lodepng::decode(data, width, height, pattern_file_name) == 0)
+				{
+					if (width != _pattern.depth() || height != _pattern.height())
+					{
+						::MessageBox(NULL, L"Pattern size is incorrect! Expected 240x240 png", L"Re-think what you are doing! :)", MB_OK);
+						return;
+					}
+
+					for (int y = 0; y < _pattern.height(); ++y)					
+					{
+						for (int z = 0; z < _pattern.depth(); ++z)
+						{
+							auto img_offs = 4 * (y * width + z);
+							bool blocking = data[img_offs] < 127 && data[img_offs+1] < 127 && data[img_offs+2] < 127;
+							_pattern.at(0, _pattern.height()-y-1, z) *= blocking ? 0.0f : 1.0f;
+						}
+					}
+				}
+			}
 		}
 
 		void start_taking_picture(const std::string& folder, uint64_t exposition)
@@ -88,11 +157,11 @@ namespace waves
 
 	private: 
 
-		static void load_scene_edges(TMediumStatic& medium)
+		static void load_scene_edges(TMediumCondStatic& medium)
 		{
 			static constexpr int THICKNESS = 10;
 
-			const float R = std::min(medium.depth(), medium.height()) / 2 - THICKNESS;
+			const float R = static_cast<float>(std::min(medium.depth(), medium.height()) / 2 - THICKNESS);
 
 			// Cylinder walls 
 			for (int x = 0; x < TMedium::width(); ++x)
@@ -101,15 +170,18 @@ namespace waves
 				{
 					for (int z = 0; z < TMedium::depth(); ++z)
 					{
-						int offset = TMedium::offset_for(x, y, z);
+						const int offset = TMedium::offset_for(x, y, z);
 
-						float dz = z - medium.depth() / 2;
-						float dy = y - medium.height() / 2;
+						const float dz = static_cast<float>(z - medium.depth() / 2);
+						const float dy = static_cast<float>(y - medium.height() / 2);
 
-						float r = std::sqrt(dz * dz + dy * dy);
+						const float r = std::sqrt(dz * dz + dy * dy);
 						if (r >= R)
 						{
-							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, static_cast<int>(r-R));
+							if (r - R < THICKNESS)
+								medium.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, r - R);
+							else
+								medium.data[offset] = 0;
 						}
 					}
 				}
@@ -121,48 +193,32 @@ namespace waves
 				{
 					for (int z = 0; z < TMedium::depth(); ++z)
 					{
-						int offset = TMedium::offset_for(x, y, z);
+						const int offset = TMedium::offset_for(x, y, z);
 
 						if (x < THICKNESS)
 						{
-							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, THICKNESS - x);
+							medium.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, static_cast<float>(THICKNESS - x));
 						}
 						else if (x >= TMedium::width() - THICKNESS)
 						{
-							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, x - (TMedium::width() - THICKNESS));
+							medium.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, static_cast<float>(x - (TMedium::width() - THICKNESS)));
 						}
-
-						//if (y < THICKNESS)
-						//{
-						//	medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, THICKNESS - y);
-						//}
-						//else if (y >= TMedium::height() - THICKNESS)
-						//{
-						//	medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - THICKNESS));
-						//}
-
-						//if (z < THICKNESS)
-						//{
-						//	medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, THICKNESS - z);
-						//}
-						//else if (z >= TMedium::depth() - THICKNESS)
-						//{
-						//	medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, z - (TMedium::depth() - THICKNESS));
-						//}
 					}
 				}
 			}
 		}		
 
-		static void load_scene0(TMediumStatic& medium)
+		static void load_scene(TMediumStatic& medium)
 		{
 			static constexpr int LENSE_BASE_X1 = 70;
 			static constexpr int LENSE_BASE_X2 = 150;
 			static constexpr float LENSE_SPHERE_X = 150;
-			static constexpr float LENSE_SPEHERE_Y = TMedium::height() / 2.0;
-			static constexpr float LENSE_SPEHERE_Z = TMedium::depth() / 2.0;
+			static constexpr float LENSE_SPEHERE_Y = TMedium::height() / 2.0f;
+			static constexpr float LENSE_SPEHERE_Z = TMedium::depth() / 2.0f;
 			static constexpr float LENSE_SPHERE_RADIUS = 123.0f;
-			static constexpr float LENSE_RADIUS = TMedium::height() / 2.0 - 15;
+			static constexpr float LENSE_RADIUS = TMedium::height() / 2.0f - 15.0f;
+
+			TMediumCondStatic cond_static{};
 
 			for (int z = 0; z < TMedium::depth(); ++z)
 			{
@@ -170,11 +226,11 @@ namespace waves
 				{
 					for (int y = 0; y < TMedium::height(); ++y)
 					{
-						int offset = TMedium::offset_for(x, y, z);
+						const int offset = TMedium::offset_for(x, y, z);
 
-						float yz_r = std::sqrt(std::pow(y - LENSE_SPEHERE_Y, 2.0f) + std::pow(z - LENSE_SPEHERE_Z, 2.0f));
+						const float yz_r = std::sqrt(std::pow(y - LENSE_SPEHERE_Y, 2.0f) + std::pow(z - LENSE_SPEHERE_Z, 2.0f));
 
-						bool inside_sphere = 
+						const bool inside_sphere = 
 							(std::pow(x - LENSE_SPHERE_X, 2.0f) + std::pow(y - LENSE_SPEHERE_Y, 2.0f) + std::pow(z - LENSE_SPEHERE_Z, 2.0f)) 
 								< std::pow(LENSE_SPHERE_RADIUS, 2.0);
 
@@ -183,7 +239,7 @@ namespace waves
 						else
 							medium.data[offset].velocity_bit = 0; // VEL_FACTOR1;
 
-						medium.data[offset].resistance = 127;
+						cond_static.data[offset] = 127.0;
 
 						if (yz_r > LENSE_RADIUS)
 						{
@@ -191,23 +247,18 @@ namespace waves
 							{
 								if (x < LENSE_BASE_X1 + 10)
 								{
-									int i = std::abs(x - LENSE_BASE_X1) + 2;
-									medium.data[offset].resistance = 127.0 * std::pow(EDGE_SLOW_DOWN_FACTOR, i);
+									const float i = std::abs(x - LENSE_BASE_X1) + 2.0f;
+									cond_static.data[offset] = 127.0f * std::powf(EDGE_SLOW_DOWN_FACTOR, i);
 								}
-								//if (x > LENSE_BASE_X2 - 10)
-								//{
-								//	int i = std::abs(x - LENSE_BASE_X2) + 2;
-								//	medium.data[offset].resistance = 127.0 * std::pow(EDGE_SLOW_DOWN_FACTOR, i);
-								//}
 								if (yz_r < LENSE_RADIUS + 10)
 								{
-									int i = std::abs(yz_r - LENSE_RADIUS) + 2;
-									medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, i);
+									const float i = std::abs(yz_r - LENSE_RADIUS) + 2.0f;
+									cond_static.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, i);
 								}
 
 								if ((x >= LENSE_BASE_X1 + 10) /*&& (x <= LENSE_BASE_X2 - 10)*/ && (yz_r >= LENSE_RADIUS + 10))
 								{
-									medium.data[offset].resistance = 0;
+									cond_static.data[offset] = 0.0f;
 								}
 							}
 						}
@@ -215,7 +266,18 @@ namespace waves
 				}
 			}
 
-			load_scene_edges(medium);
+			load_scene_edges(cond_static);
+			for (int z = 0; z < TMedium::depth(); ++z)
+			{
+				for (int x = 0; x < TMedium::width(); ++x)
+				{
+					for (int y = 0; y < TMedium::height(); ++y)
+					{
+						const int offset = TMedium::offset_for(x, y, z);
+						medium.data[offset].conductivity = static_cast<uint8_t>(cond_static.data[offset]);
+					}
+				}
+			}
 		}
 
 	public:
@@ -227,10 +289,9 @@ namespace waves
 			auto& current = _mediums[_iteration % 2];
 			auto& next = _mediums[(_iteration + 1) % 2];
 
-			int fill_value = ((_iteration % 70) > 35) ? 500 : -500;
-			fill(current, 11, fill_value);
+			fill(current, 11, (_iteration % 70) > 35);
 
-			uint64_t start = __rdtsc();
+			const uint64_t start = __rdtsc();
 
 			constexpr int xd_neighbour = TMedium::offset_for(-1, 0, 0) - TMedium::offset_for(0, 0, 0);
 			constexpr int xu_neighbour = TMedium::offset_for(1, 0, 0) - TMedium::offset_for(0, 0, 0);
@@ -243,9 +304,6 @@ namespace waves
 
 			_grid.GridRun(
 				[&](int thread_idx, int num_threads)
-			//concurrency::parallel_for(
-				//0, static_cast<int>(TMedium::depth() / 32),
-				//[&](int Z_big)
 				{
 					int slice = TMedium::depth() / num_threads;
 					int from = thread_idx * slice;
@@ -253,13 +311,15 @@ namespace waves
 
 					for (int z = from; z < to; ++z)
 					{
-						//const int z = Z_big * 32 + sub_z;
-
 						for (int y = 0; y < TMedium::height(); ++ y)
 						{
 							for (int x = 0; x < TMedium::width(); ++x)
 							{
-								int offset = TMedium::offset_for(x, y, z);
+								const int offset = TMedium::offset_for(x, y, z);
+								const auto item_static = _static.data[offset];
+
+								if (item_static.conductivity == 0)
+									continue;
 
 								const float neigh_total =
 									current.data[offset + xd_neighbour].location +
@@ -273,12 +333,10 @@ namespace waves
 
 								const float delta_x = current.data[offset].location - neight_average; // location relative to the current neightbour average 
 
-								auto item_static = _static.data[offset];
-
 								const float velolicty_factor = item_static.velocity_bit ? VEL_FACTOR2 : VEL_FACTOR1;
-								const float resistance_factor = static_cast<float>(item_static.resistance) / 127.0f;
+								const float conductivity_factor = static_cast<float>(item_static.conductivity) / 127.0f;
 
-								auto new_velocity = (current.data[offset].velocity - velolicty_factor * delta_x) * resistance_factor * 0.99999;
+								const float new_velocity = (current.data[offset].velocity - velolicty_factor * delta_x) * conductivity_factor * 0.99999f;
 
 								next.data[offset].location = current.data[offset].location + new_velocity * LOC_FACTOR;
 								next.data[offset].velocity = new_velocity;
@@ -288,7 +346,7 @@ namespace waves
 				}
 				);
 
-			uint64_t end = __rdtsc();
+			const uint64_t end = __rdtsc();
 
 			if (_picture_exposing_until != 0)
 			{
@@ -299,7 +357,7 @@ namespace waves
 					{
 						for (int z = 0; z < TSrcPictureMedium::depth(); ++z)
 						{
-							_src_picture.at(x, y, z) += std::abs(current.at(x + PIC_SRC_BASE, y, z).location);
+							_src_picture.at(x, y, z) += std::powf(current.at(x + PIC_SRC_BASE, y, z).location, 2.0f); // energy is a power of 2 of displacement or speed 
 						}
 					}
 				}
@@ -310,7 +368,7 @@ namespace waves
 					{
 						for (int z = 0; z < TPictureMedium::depth(); ++z)
 						{
-							_picture.at(x, y, z) += std::abs(current.at(x + PIC_BASE, y, z).location);
+							_picture.at(x, y, z) += std::powf(current.at(x + PIC_BASE, y, z).location, 2.0f); // energy is a power of 2 of displacement or speed 
 						}
 					}
 				}
@@ -323,7 +381,7 @@ namespace waves
 				}
 			}
 
-			elapsed_cpu_clocks += end- start;
+			elapsed_cpu_clocks += end - start;
 
 			_iteration++;
 			return true;
@@ -343,53 +401,37 @@ namespace waves
 			if (_iteration == 0)
 				return { 0, 0 };
 
-			uint64_t clocks_per_iter{ elapsed_cpu_clocks / _iteration };
-			uint64_t clocks_per_iter_per_voxel{ clocks_per_iter / (TMedium::depth() * TMedium::width() * TMedium::height()) };
+			const uint64_t clocks_per_iter{ elapsed_cpu_clocks / _iteration };
+			const uint64_t clocks_per_iter_per_voxel{ clocks_per_iter / (TMedium::depth() * TMedium::width() * TMedium::height()) };
 
 			return { clocks_per_iter, clocks_per_iter_per_voxel };
 		}
 
-		void toggle_light(int idx)
-		{
-			//if (idx >= 0 && idx < light_enabled.size())
-			//{
-			//	light_enabled[idx] = !light_enabled[idx];
-			//}
-		}
-
 	private: 
-		static void fill(TMedium& medium, int x_plane, int value)
+		void fill(TMedium& medium, int x_plane, bool inverse)
 		{
-			const int32_t R = std::min(medium.depth(), medium.height())/2 - 5;
-			const int32_t RSqr = R * R;
-
-			for (int z = 0; z < medium.depth(); ++ z)
+			if (!inverse)
 			{
-				for (int y = 0; y < medium.height(); ++ y)
+				for (int z = 0; z < medium.depth(); ++z)
 				{
-					auto dz = z - medium.depth() / 2;
-					auto dy = y - medium.height() / 2;
-
-					auto& item = medium.at(x_plane, y, z);
-
-					if ((std::abs(dz) < 10) || (std::abs(dy) < 10))
+					for (int y = 0; y < medium.height(); ++y)
 					{
-						item.location = 0;
+						auto& item = medium.at(x_plane, y, z);
+						item.location = _pattern.at(0, y, z);
+						item.velocity = 0.0f;
 					}
-					else
+				}
+			}
+			else
+			{
+				for (int z = 0; z < medium.depth(); ++z)
+				{
+					for (int y = 0; y < medium.height(); ++y)
 					{
-						//auto dSqr = dz * dz + dy * dy;
-						//if (dSqr <= RSqr)
-						//{
-							item.location = value;
-						//}
-						//else
-						//{
-						//	item.location = value / (dSqr - RSqr);
-						//}
+						auto& item = medium.at(x_plane, y, z);
+						item.location = -_pattern.at(0, y, z);
+						item.velocity = 0.0f;
 					}
-
-					item.velocity = 0.0f;
 				}
 			}
 		}
@@ -409,10 +451,10 @@ namespace waves
 				{
 					for (int z = 0; z < pic.depth(); ++z)
 					{
-						int32_t value = pic.at(x, y, z) / _exposition;
-						int32_t brightness = std::max(0, std::min(255, value));
+						const int32_t value = static_cast<int32_t>(pic.at(x, y, z) / 1500.0);
+						const int32_t brightness = std::max(0, std::min(255, value));
 
-						uint32_t offs = 4 * (y * pic.depth() + z);
+						const uint32_t offs = 4 * (y * pic.depth() + z);
 
 						data[offs] = brightness;
 						data[offs + 1] = brightness;

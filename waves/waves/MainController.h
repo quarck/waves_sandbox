@@ -96,7 +96,7 @@ namespace waves
         MainController(runtime_config& cfg)
             : config(cfg)
 			, viewDetails { 1, true }
-			, world{ cfg.scene() }
+			, world{ }
 			, _worldView{ world }
         {
         }
@@ -143,31 +143,33 @@ namespace waves
 					}
 				}
 
-				//if (world.current_iteration() % 64 == 0)
+				if (!appPaused && !world.initialized())
 				{
-					auto now = std::chrono::high_resolution_clock::now();
-					std::chrono::duration<double> sinceLastUpdate = std::chrono::duration_cast<std::chrono::duration<double>>(now - lastUIUpdate);
+					initializeWorld();
+				}
 
-					if (sinceLastUpdate.count() > 1.0 / 30 || recording)
-					{						
-						lastUIUpdate = now;
-						last_update_at = world.current_iteration();
+				auto now = std::chrono::high_resolution_clock::now();
+				std::chrono::duration<double> sinceLastUpdate = std::chrono::duration_cast<std::chrono::duration<double>>(now - lastUIUpdate);
 
-						auto [pp, ppv] = world.get_clocks_per_iter();
-						viewDetails.clocks_per_iter = pp;
-						viewDetails.clocks_per_iter_per_voxel = ppv;
-						viewDetails.iteration = world.current_iteration();
+				if (sinceLastUpdate.count() > 1.0 / 30 || recording)
+				{						
+					lastUIUpdate = now;
+					last_update_at = world.current_iteration();
 
-						uiNeedsUpdate = true;
-						::SendMessage(hWND, WM_USER, 0, 0);
-						while (uiNeedsUpdate && !terminate)
-						{
-							// Keep yeild-ing the thread while UI thread is doing the painting job, 
-							// this is to avoid the white lock situation
-							std::this_thread::yield();
-						}
+					auto [pp, ppv] = world.get_clocks_per_iter();
+					viewDetails.clocks_per_iter = pp;
+					viewDetails.clocks_per_iter_per_voxel = ppv;
+					viewDetails.iteration = world.current_iteration();
+
+					uiNeedsUpdate = true;
+					::SendMessage(hWND, WM_USER, 0, 0);
+					while (uiNeedsUpdate && !terminate)
+					{
+						// Keep yeild-ing the thread while UI thread is doing the painting job, 
+						// this is to avoid the white lock situation
+						std::this_thread::yield();
 					}
-                }
+				}
 
                 std::lock_guard<std::mutex> l(worldLock);
                 
@@ -184,6 +186,33 @@ namespace waves
 			_vpHeight = height;
 			if (_imageLogger)
 				_imageLogger->onViewportResize(width, height);
+		}
+
+		void initializeWorld()
+		{
+			WCHAR file[MAX_PATH] = L"";
+			char mbsFile[MAX_PATH * 4];
+
+			OPENFILENAME ofn;
+			ZeroMemory(&ofn, sizeof(ofn));
+			ofn.lStructSize = sizeof(ofn);
+
+			ofn.hwndOwner = hWND;
+			ofn.lpstrFilter = L"png (*.png)\0*.png\0";
+			ofn.lpstrFile = &file[0];
+			ofn.nMaxFile = MAX_PATH;
+			ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+			ofn.lpstrDefExt = L"png";
+
+			if (::GetOpenFileName(&ofn))
+			{
+				size_t nc = ::wcstombs(mbsFile, file, MAX_PATH * 4 - 1);
+				if (nc > 0 && nc < MAX_PATH * 4)
+				{
+					std::string fileName{ mbsFile };
+					world.initialize(fileName);
+				}
+			}
 		}
 
 		void onTakePicture()
@@ -212,46 +241,6 @@ namespace waves
 			std::lock_guard<std::mutex> l(worldLock);
 
 			world.start_taking_picture(mbsFolder, 128);
-
-			//const auto& medium = world.get_data();
-			//logger->onViewportResize(medium.height(), medium.depth());
-
-			//for (int x = 0; x < medium.width(); ++x)
-			//{
-			//	auto& data = logger->data();
-
-			//	for (int y = 0; y < medium.height(); ++y)
-			//	{
-			//		for (int z = 0; z < medium.depth(); ++z)
-			//		{
-			//			auto& item = medium.at(x, y, z);
-			//			bool empty = (item.location == 0) && (item.velocity == 0);
-			//			int32_t v = (int32_t)(item.location * 1);
-
-			//			int32_t brightness_p_256 = std::max(0,  std::min(255, v));
-			//			int32_t brightness_n_256 = std::max(0, std::min(64, - v / 4));
-
-			//			uint32_t offs =  4 * (y * medium.depth() + z) ;
-
-			//			if (!empty)
-			//			{
-			//				data[offs] = brightness_p_256;
-			//				data[offs + 1] = std::max(0, 3 * brightness_p_256 - 512);
-			//				data[offs + 2] = brightness_n_256;
-			//				data[offs + 3] = 255;
-			//			}
-			//			else
-			//			{
-			//				data[offs] = 127;
-			//				data[offs + 1] = 127;
-			//				data[offs + 2] = 0;
-			//				data[offs + 3] = 255;
-			//			}
-			//		}
-			//	}
-
-			//	logger->recordOrthogonalFrame(x);
-			//}
 		}
 
 		void onToggleScreenRecording()
@@ -283,11 +272,6 @@ namespace waves
 			}
 
 			recording = !recording && _imageLogger;
-		}
-
-		void onToggleLight(int idx)
-		{
-			world.toggle_light(idx);
 		}
 
 		void OnKeyboard(WPARAM wParam) override
@@ -324,16 +308,6 @@ namespace waves
 
 			case 't': case 'T': 
 				onToggleScreenRecording();
-				break;
-
-			case '1': 
-				onToggleLight(0);
-				break;
-			case '2':
-				onToggleLight(1);
-				break;
-			case '3':
-				onToggleLight(2);
 				break;
 
 			//case '+': case '=':

@@ -13,7 +13,7 @@ namespace waves
 	struct ItemStatic
 	{
 		uint8_t velocity_bit : 1;
-		uint8_t resistance : 7;
+		uint8_t conductivity : 7;
 	};
 	static_assert(sizeof(ItemStatic) == 1);
 
