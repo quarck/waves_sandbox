@@ -210,45 +210,47 @@ namespace waves
 
 			std::lock_guard<std::mutex> l(worldLock);
 
-			const auto& medium = world.get_data();
-			logger->onViewportResize(medium.height(), medium.depth());
+			world.start_taking_picture(mbsFolder, 16);
 
-			for (int x = 0; x < medium.width(); ++x)
-			{
-				auto& data = logger->data();
+			//const auto& medium = world.get_data();
+			//logger->onViewportResize(medium.height(), medium.depth());
 
-				for (int y = 0; y < medium.height(); ++y)
-				{
-					for (int z = 0; z < medium.depth(); ++z)
-					{
-						auto& item = medium.at(x, y, z);
-						bool empty = (item.location == 0) && (item.velocity == 0);
-						int32_t v = (int32_t)(item.location * 8);
+			//for (int x = 0; x < medium.width(); ++x)
+			//{
+			//	auto& data = logger->data();
 
-						int32_t brightness_p_256 = std::max(0,  std::min(255, v));
-						int32_t brightness_n_256 = std::max(0, std::min(64, - v / 4));
+			//	for (int y = 0; y < medium.height(); ++y)
+			//	{
+			//		for (int z = 0; z < medium.depth(); ++z)
+			//		{
+			//			auto& item = medium.at(x, y, z);
+			//			bool empty = (item.location == 0) && (item.velocity == 0);
+			//			int32_t v = (int32_t)(item.location * 1);
 
-						uint32_t offs =  4 * (y * medium.depth() + z) ;
+			//			int32_t brightness_p_256 = std::max(0,  std::min(255, v));
+			//			int32_t brightness_n_256 = std::max(0, std::min(64, - v / 4));
 
-						if (!empty)
-						{
-							data[offs] = brightness_p_256;
-							data[offs + 1] = std::max(0, 3 * brightness_p_256 - 512);
-							data[offs + 2] = brightness_n_256;
-							data[offs + 3] = 255;
-						}
-						else
-						{
-							data[offs] = 127;
-							data[offs + 1] = 127;
-							data[offs + 2] = 0;
-							data[offs + 3] = 255;
-						}
-					}
-				}
+			//			uint32_t offs =  4 * (y * medium.depth() + z) ;
 
-				logger->recordOrthogonalFrame(x);
-			}
+			//			if (!empty)
+			//			{
+			//				data[offs] = brightness_p_256;
+			//				data[offs + 1] = std::max(0, 3 * brightness_p_256 - 512);
+			//				data[offs + 2] = brightness_n_256;
+			//				data[offs + 3] = 255;
+			//			}
+			//			else
+			//			{
+			//				data[offs] = 127;
+			//				data[offs + 1] = 127;
+			//				data[offs + 2] = 0;
+			//				data[offs + 3] = 255;
+			//			}
+			//		}
+			//	}
+
+			//	logger->recordOrthogonalFrame(x);
+			//}
 		}
 
 		void onToggleScreenRecording()

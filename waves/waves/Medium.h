@@ -61,6 +61,11 @@ namespace waves
 		{
 			return data[offset_for(x, y, z)];
 		}
+
+		void fill(TItem&& value)
+		{
+			std::fill(data.begin(), data.end(), value);
+		}
 	};
 
 }

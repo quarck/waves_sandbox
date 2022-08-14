@@ -182,8 +182,8 @@ namespace waves
 
 					glBegin(GL_TRIANGLES);
 
-					float brightness_p = std::max(0.0f, std::min(1.0f, v / 10.0f));
-					float brightness_n = std::max(0.0f, std::min(1.0f, -v / 10.0f)) / 4.0f;
+					float brightness_p = std::max(0.0f, std::min(1.0f, v / 1000.0f));
+					float brightness_n = std::max(0.0f, std::min(1.0f, -v / 1000.0f)) / 4.0f;
 
 					if (!empty)
 					{
