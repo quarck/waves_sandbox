@@ -23,6 +23,7 @@ namespace waves
 		bool paused;
 		uint64_t clocks_per_iter{ 0 };
 		uint64_t clocks_per_iter_per_voxel{ 0 };
+		uint64_t iteration{ 0 };
 
 		WorldViewDetails(int nThr, bool p) 
 			: numActiveThreads{ nThr }
@@ -77,7 +78,7 @@ namespace waves
 				.DrawAt(-1.0, -0.99);
 
 			if (details.paused)
-				_pausedLabel.DrawAt(-0.2, 0);
+				_pausedLabel.DrawAt(-1.0, 0.0);
 
 			glPopMatrix();
 		}
@@ -89,7 +90,7 @@ namespace waves
 			glPixelZoom(1.f, 1.f);
 
 			std::ostringstream rcfg;
-			rcfg << "perf: " << details.clocks_per_iter / 1000000 << "M clk/iter " << details.clocks_per_iter_per_voxel << " clk/iter/voxel ";
+			rcfg << "iter:" << details.iteration << " perf: " << details.clocks_per_iter / 1000000 << "M clk/iter " << details.clocks_per_iter_per_voxel << " clk/iter/voxel ";
 
 			_iterAndCfgLabel.Update(
 				LABELS_BACKGROUND,

@@ -35,22 +35,28 @@ namespace waves
 		using TMedium = Medium<432, 240, 240>;
 		using TMediumStatic = Medium<TMedium::width(), TMedium::height(), TMedium::depth(), ItemStatic>;
 
-		using TPictureMedium = Medium<64, TMedium::height(), TMedium::depth(), float>;
+		using TSrcPictureMedium = Medium<8, TMedium::height(), TMedium::depth(), float, 0, true>;
+		using TPictureMedium = Medium<20, TMedium::height(), TMedium::depth(), float, 0, true>;
 
 		static constexpr float VEL_FACTOR1 = 0.40 ; // dV = -k*x/m * dT, this is k*dT/m
-		static constexpr float VEL_FACTOR2 = 0.2;// 0.13; // dV = -k*x/m * dT, this is k*dT/m
+		static constexpr float VEL_FACTOR2 = 0.2; // 0.13; // dV = -k*x/m * dT, this is k*dT/m
 		static constexpr float LOC_FACTOR = 0.1 ; // dX = V * dT, this is dT
 
 		static constexpr float EDGE_SLOW_DOWN_FACTOR = 0.98;
 
-		static constexpr float PIC_BASE = 220;
+		static constexpr int SOURCE_X = 11;
+
+		static constexpr int PIC_SRC_BASE = SOURCE_X-2;
+		static constexpr int PIC_BASE = 220;
 
 	private:
 
-		ThreadGrid _grid{ 4 };
+		ThreadGrid _grid{ 8 };
 
 		TMediumStatic _static;
 		std::array<TMedium, 2> _mediums;
+
+		TSrcPictureMedium _src_picture;
 		TPictureMedium _picture;
 
         Random _random{};
@@ -60,6 +66,7 @@ namespace waves
 
 		std::string _pictures_folder;
 		uint64_t _picture_exposing_until{ 0 };
+		uint64_t _exposition{ 0 };
 
 	public:
         World(int scene)
@@ -73,6 +80,7 @@ namespace waves
 
 		void start_taking_picture(const std::string& folder, uint64_t exposition)
 		{
+			_exposition = exposition;
 			_picture.fill(0.0f);
 			_pictures_folder = folder;
 			_picture_exposing_until = _iteration + exposition + 1;
@@ -84,12 +92,34 @@ namespace waves
 		{
 			static constexpr int THICKNESS = 10;
 
+			const float R = std::min(medium.depth(), medium.height()) / 2 - THICKNESS;
 
-			for (int z = 0; z < TMedium::depth(); ++z)
+			// Cylinder walls 
+			for (int x = 0; x < TMedium::width(); ++x)
 			{
-				for (int x = 0; x < TMedium::width(); ++x)
+				for (int y = 0; y < TMedium::height(); ++y)
 				{
-					for (int y = 0; y < TMedium::height(); ++y)
+					for (int z = 0; z < TMedium::depth(); ++z)
+					{
+						int offset = TMedium::offset_for(x, y, z);
+
+						float dz = z - medium.depth() / 2;
+						float dy = y - medium.height() / 2;
+
+						float r = std::sqrt(dz * dz + dy * dy);
+						if (r >= R)
+						{
+							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, static_cast<int>(r-R));
+						}
+					}
+				}
+			}			
+
+			for (int x = 0; x < TMedium::width(); ++x)				
+			{
+				for (int y = 0; y < TMedium::height(); ++y)
+				{
+					for (int z = 0; z < TMedium::depth(); ++z)
 					{
 						int offset = TMedium::offset_for(x, y, z);
 
@@ -102,23 +132,23 @@ namespace waves
 							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, x - (TMedium::width() - THICKNESS));
 						}
 
-						if (y < THICKNESS)
-						{
-							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, THICKNESS - y);
-						}
-						else if (y >= TMedium::height() - THICKNESS)
-						{
-							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - THICKNESS));
-						}
+						//if (y < THICKNESS)
+						//{
+						//	medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, THICKNESS - y);
+						//}
+						//else if (y >= TMedium::height() - THICKNESS)
+						//{
+						//	medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, y - (TMedium::height() - THICKNESS));
+						//}
 
-						if (z < THICKNESS)
-						{
-							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, THICKNESS - z);
-						}
-						else if (z >= TMedium::depth() - THICKNESS)
-						{
-							medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, z - (TMedium::depth() - THICKNESS));
-						}
+						//if (z < THICKNESS)
+						//{
+						//	medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, THICKNESS - z);
+						//}
+						//else if (z >= TMedium::depth() - THICKNESS)
+						//{
+						//	medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, z - (TMedium::depth() - THICKNESS));
+						//}
 					}
 				}
 			}
@@ -132,7 +162,7 @@ namespace waves
 			static constexpr float LENSE_SPEHERE_Y = TMedium::height() / 2.0;
 			static constexpr float LENSE_SPEHERE_Z = TMedium::depth() / 2.0;
 			static constexpr float LENSE_SPHERE_RADIUS = 123.0f;
-			static constexpr float LENSE_DIAMETER = TMedium::height() / 2.0 - 15;
+			static constexpr float LENSE_RADIUS = TMedium::height() / 2.0 - 15;
 
 			for (int z = 0; z < TMedium::depth(); ++z)
 			{
@@ -155,7 +185,7 @@ namespace waves
 
 						medium.data[offset].resistance = 127;
 
-						if (yz_r > LENSE_DIAMETER)
+						if (yz_r > LENSE_RADIUS)
 						{
 							if (x > LENSE_BASE_X1/* && x < LENSE_BASE_X2*/)
 							{
@@ -169,13 +199,13 @@ namespace waves
 								//	int i = std::abs(x - LENSE_BASE_X2) + 2;
 								//	medium.data[offset].resistance = 127.0 * std::pow(EDGE_SLOW_DOWN_FACTOR, i);
 								//}
-								if (yz_r < LENSE_DIAMETER + 10)
+								if (yz_r < LENSE_RADIUS + 10)
 								{
-									int i = std::abs(yz_r - LENSE_DIAMETER) + 2;
+									int i = std::abs(yz_r - LENSE_RADIUS) + 2;
 									medium.data[offset].resistance *= std::pow(EDGE_SLOW_DOWN_FACTOR, i);
 								}
 
-								if ((x >= LENSE_BASE_X1 + 10) /*&& (x <= LENSE_BASE_X2 - 10)*/ && (yz_r >= LENSE_DIAMETER + 10))
+								if ((x >= LENSE_BASE_X1 + 10) /*&& (x <= LENSE_BASE_X2 - 10)*/ && (yz_r >= LENSE_RADIUS + 10))
 								{
 									medium.data[offset].resistance = 0;
 								}
@@ -262,6 +292,18 @@ namespace waves
 
 			if (_picture_exposing_until != 0)
 			{
+
+				for (int x = 0; x < TSrcPictureMedium::width(); ++x)
+				{
+					for (int y = 0; y < TSrcPictureMedium::height(); ++y)
+					{
+						for (int z = 0; z < TSrcPictureMedium::depth(); ++z)
+						{
+							_src_picture.at(x, y, z) += std::abs(current.at(x + PIC_SRC_BASE, y, z).location);
+						}
+					}
+				}
+
 				for (int x = 0; x < TPictureMedium::width(); ++x)
 				{
 					for (int y = 0; y < TPictureMedium::height(); ++y)
@@ -276,7 +318,8 @@ namespace waves
 				if (_picture_exposing_until == _iteration)
 				{
 					_picture_exposing_until = 0;
-					save_pictures(_picture, _pictures_folder);
+					save_pictures(_picture, _pictures_folder, PIC_BASE);
+					save_pictures(_src_picture, _pictures_folder, PIC_SRC_BASE);
 				}
 			}
 
@@ -317,21 +360,33 @@ namespace waves
 	private: 
 		static void fill(TMedium& medium, int x_plane, int value)
 		{
+			const int32_t R = std::min(medium.depth(), medium.height())/2 - 5;
+			const int32_t RSqr = R * R;
+
 			for (int z = 0; z < medium.depth(); ++ z)
 			{
 				for (int y = 0; y < medium.height(); ++ y)
 				{
+					auto dz = z - medium.depth() / 2;
+					auto dy = y - medium.height() / 2;
+
 					auto& item = medium.at(x_plane, y, z);
 
-					if ((std::abs(z - medium.depth() / 2) < 10) ||
-						(std::abs(y - medium.height() / 2) < 10)
-						)
+					if ((std::abs(dz) < 10) || (std::abs(dy) < 10))
 					{
 						item.location = 0;
 					}
 					else
 					{
-						item.location = value;
+						//auto dSqr = dz * dz + dy * dy;
+						//if (dSqr <= RSqr)
+						//{
+							item.location = value;
+						//}
+						//else
+						//{
+						//	item.location = value / (dSqr - RSqr);
+						//}
 					}
 
 					item.velocity = 0.0f;
@@ -339,7 +394,8 @@ namespace waves
 			}
 		}
 
-		void save_pictures(TPictureMedium& pic, const std::string& folder)
+		template <typename TPicture>
+		void save_pictures(TPicture& pic, const std::string& folder, int idx_offset)
 		{
 			auto logger = std::make_unique<PngLogger>(folder);
 
@@ -347,36 +403,25 @@ namespace waves
 
 			for (int x = 0; x < pic.width(); ++x)
 			{
-				auto& data = logger->data();
-
-				//float top = 0;
-				//for (int y = 0; y < pic.height(); ++y)
-				//{
-				//	for (int z = 0; z < pic.depth(); ++z)
-				//	{
-				//		top = std::max(top, pic.at(x, y, z));
-				//	}
-				//}
+				auto& data = logger->data();				
 
 				for (int y = 0; y < pic.height(); ++y)
 				{
 					for (int z = 0; z < pic.depth(); ++z)
 					{
-						int32_t v = pic.at(x, y, z) / 16;
-
-						int32_t brightness_p_256 = std::max(0, std::min(255, v));
-						int32_t brightness_n_256 = std::max(0, std::min(64, -v / 4));
+						int32_t value = pic.at(x, y, z) / _exposition;
+						int32_t brightness = std::max(0, std::min(255, value));
 
 						uint32_t offs = 4 * (y * pic.depth() + z);
 
-						data[offs] = brightness_p_256;
-						data[offs + 1] = std::max(0, 3 * brightness_p_256 - 512);
-						data[offs + 2] = brightness_n_256;
+						data[offs] = brightness;
+						data[offs + 1] = brightness;
+						data[offs + 2] = brightness;
 						data[offs + 3] = 255;
 					}
 				}
 				
-				logger->recordOrthogonalFrame(x + PIC_BASE);
+				logger->recordOrthogonalFrame(x + idx_offset);
 			}
 		}
     };

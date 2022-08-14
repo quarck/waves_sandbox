@@ -156,6 +156,7 @@ namespace waves
 						auto [pp, ppv] = world.get_clocks_per_iter();
 						viewDetails.clocks_per_iter = pp;
 						viewDetails.clocks_per_iter_per_voxel = ppv;
+						viewDetails.iteration = world.current_iteration();
 
 						uiNeedsUpdate = true;
 						::SendMessage(hWND, WM_USER, 0, 0);
@@ -210,7 +211,7 @@ namespace waves
 
 			std::lock_guard<std::mutex> l(worldLock);
 
-			world.start_taking_picture(mbsFolder, 16);
+			world.start_taking_picture(mbsFolder, 128);
 
 			//const auto& medium = world.get_data();
 			//logger->onViewportResize(medium.height(), medium.depth());

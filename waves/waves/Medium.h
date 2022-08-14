@@ -17,15 +17,14 @@ namespace waves
 	};
 	static_assert(sizeof(ItemStatic) == 1);
 
-	template <int W, int H, int D, typename TItem=Item, int GUARD_SIZE = 4>
+	template <int W, int H, int D, typename TItem=Item, int GUARD_SIZE = 4, bool skip_assert=false>
 	struct Medium
 	{
-		static_assert(W % 16 == 0);
-		static_assert(H % 16 == 0);
-		static_assert(D % 16 == 0);
-		//static_assert(D == 1);
+		static_assert(W % 16 == 0 || skip_assert);
+		static_assert(H % 16 == 0 || skip_assert);
+		static_assert(D % 16 == 0 || skip_assert);
 
-		static_assert(GUARD_SIZE > 0);
+		static_assert(GUARD_SIZE > 0 || skip_assert);
 
 		static constexpr int W_GUARD = GUARD_SIZE;
 		static constexpr int H_GUARD = GUARD_SIZE;

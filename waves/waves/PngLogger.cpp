@@ -68,7 +68,7 @@ void PngLogger::recordOrthogonalFrame(uint64_t plane_seq)
 
 	// todo: format the name with leading zeroes
 	std::ostringstream str;
-	str << _logFolder << "\\" << std::setw(8) << std::setfill('0') << plane_seq << ".png";
+	str << _logFolder << "\\" << std::setw(3) << std::setfill('0') << plane_seq << ".png";
 	std::string name = str.str();
 
 	lodepng::encode(name.c_str(), _pixelsFlipped.data(), _vpWidth, _vpHeight);
