@@ -30,19 +30,37 @@
 
 namespace waves
 { 
+	template <typename T>
+	constexpr T&& ce_min(T&& a, T&& b) noexcept
+	{
+		if (a < b)
+			return std::forward<T>(a);
+		return std::forward<T>(b);
+	}
+
     class World
     {
 	public:
-		using TMedium = Medium<432, 240, 240>;
+
+		static constexpr int PATTERN_SIDE = 240;
+
+
+		using TMedium = Medium<432, 768, 768>;
 		using TMediumStatic = Medium<TMedium::width(), TMedium::height(), TMedium::depth(), ItemStatic>;
 
-		using TMediumPatternStatic = Medium<1, TMedium::height(), TMedium::depth(), float, 0, true>;
+		using TMediumPatternStatic = Medium<1, PATTERN_SIDE, PATTERN_SIDE, float, 0, true>;
 
 		// a temp object used to calculate resistance/conductivity with higher precision
 		using TMediumCondStatic = Medium<TMedium::width(), TMedium::height(), TMedium::depth(), float>;
 
 		using TSrcPictureMedium = Medium<1, TMedium::height(), TMedium::depth(), float, 0, true>;
-		using TPictureMedium = Medium<40, TMedium::height(), TMedium::depth(), float, 0, true>;
+		using TPictureMedium = Medium<100, TMedium::height(), TMedium::depth(), float, 0, true>;
+
+		static_assert(PATTERN_SIDE <= TMedium::height());
+		static_assert(PATTERN_SIDE <= TMedium::depth());
+
+		static constexpr int PATTERN_Y_OFFSET = (TMedium::height() - PATTERN_SIDE) / 2;
+		static constexpr int PATTERN_Z_OFFSET = (TMedium::depth() - PATTERN_SIDE) / 2;
 
 		static constexpr float VEL_FACTOR1 = 0.40 ; // dV = -k*x/m * dT, this is k*dT/m
 		static constexpr float VEL_FACTOR2 = 0.2; // 0.13; // dV = -k*x/m * dT, this is k*dT/m
@@ -53,9 +71,21 @@ namespace waves
 		static constexpr int SOURCE_X = 11;
 
 		static constexpr int PIC_SRC_BASE = SOURCE_X;
-		static constexpr int PIC_BASE = 210;
+		static constexpr int PIC_BASE = 190;
 
 		static constexpr float FILL_VALUE = 500.0f;
+
+		static constexpr int EDGE_THICKNESS = 10;
+
+		static constexpr int LENSE_BASE_X1 = 70;
+		static constexpr int LENSE_BASE_X2 = 90;
+		static constexpr float LENSE_SPHERE_X = 150;
+		static constexpr float LENSE_SPEHERE_Y = TMedium::height() / 2.0f;
+		static constexpr float LENSE_SPEHERE_Z = TMedium::depth() / 2.0f;
+		static constexpr float LENSE_SPHERE_RADIUS = 123.0f;
+
+		static constexpr float LENSE_RADIUS = 105.0f;
+		static constexpr float INNER_CAMERA_RADIUS = ce_min(TMedium::height(), TMedium::depth()) / 2.0 - 15.0;
 
 	private:
 
@@ -159,9 +189,7 @@ namespace waves
 
 		static void load_scene_edges(TMediumCondStatic& medium)
 		{
-			static constexpr int THICKNESS = 10;
-
-			const float R = static_cast<float>(std::min(medium.depth(), medium.height()) / 2 - THICKNESS);
+			const float R = static_cast<float>(std::min(medium.depth(), medium.height()) / 2 - EDGE_THICKNESS);
 
 			// Cylinder walls 
 			for (int x = 0; x < TMedium::width(); ++x)
@@ -178,7 +206,7 @@ namespace waves
 						const float r = std::sqrt(dz * dz + dy * dy);
 						if (r >= R)
 						{
-							if (r - R < THICKNESS)
+							if (r - R < EDGE_THICKNESS)
 								medium.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, r - R);
 							else
 								medium.data[offset] = 0;
@@ -195,13 +223,13 @@ namespace waves
 					{
 						const int offset = TMedium::offset_for(x, y, z);
 
-						if (x < THICKNESS)
+						if (x < EDGE_THICKNESS)
 						{
-							medium.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, static_cast<float>(THICKNESS - x));
+							medium.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, static_cast<float>(EDGE_THICKNESS - x));
 						}
-						else if (x >= TMedium::width() - THICKNESS)
+						else if (x >= TMedium::width() - EDGE_THICKNESS)
 						{
-							medium.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, static_cast<float>(x - (TMedium::width() - THICKNESS)));
+							medium.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, static_cast<float>(x - (TMedium::width() - EDGE_THICKNESS)));
 						}
 					}
 				}
@@ -210,14 +238,6 @@ namespace waves
 
 		static void load_scene(TMediumStatic& medium)
 		{
-			static constexpr int LENSE_BASE_X1 = 70;
-			static constexpr int LENSE_BASE_X2 = 150;
-			static constexpr float LENSE_SPHERE_X = 150;
-			static constexpr float LENSE_SPEHERE_Y = TMedium::height() / 2.0f;
-			static constexpr float LENSE_SPEHERE_Z = TMedium::depth() / 2.0f;
-			static constexpr float LENSE_SPHERE_RADIUS = 123.0f;
-			static constexpr float LENSE_RADIUS = TMedium::height() / 2.0f - 15.0f;
-
 			TMediumCondStatic cond_static{};
 
 			for (int z = 0; z < TMedium::depth(); ++z)
@@ -241,25 +261,41 @@ namespace waves
 
 						cond_static.data[offset] = 127.0;
 
-						if (yz_r > LENSE_RADIUS)
+						if (yz_r > LENSE_RADIUS && x > LENSE_BASE_X1 && x < LENSE_BASE_X2)
 						{
-							if (x > LENSE_BASE_X1/* && x < LENSE_BASE_X2*/)
+							if (x < LENSE_BASE_X1 + 10)
 							{
-								if (x < LENSE_BASE_X1 + 10)
-								{
-									const float i = std::abs(x - LENSE_BASE_X1) + 2.0f;
-									cond_static.data[offset] = 127.0f * std::powf(EDGE_SLOW_DOWN_FACTOR, i);
-								}
-								if (yz_r < LENSE_RADIUS + 10)
-								{
-									const float i = std::abs(yz_r - LENSE_RADIUS) + 2.0f;
-									cond_static.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, i);
-								}
+								const float i = std::abs(x - LENSE_BASE_X1) + 2.0f;
+								cond_static.data[offset] = 127.0f * std::powf(EDGE_SLOW_DOWN_FACTOR, i);
+							}
+							else if (x > LENSE_BASE_X2 - 10)
+							{
+								const float i = std::abs(x - LENSE_BASE_X2) + 2.0f;
+								cond_static.data[offset] = 127.0f * std::powf(EDGE_SLOW_DOWN_FACTOR, i);
+							}
 
-								if ((x >= LENSE_BASE_X1 + 10) /*&& (x <= LENSE_BASE_X2 - 10)*/ && (yz_r >= LENSE_RADIUS + 10))
-								{
-									cond_static.data[offset] = 0.0f;
-								}
+							if (yz_r < LENSE_RADIUS + 10)
+							{
+								const float i = std::abs(yz_r - LENSE_RADIUS) + 2.0f;
+								cond_static.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, i);
+							}
+
+							if ((x >= LENSE_BASE_X1 + 10) && (x <= LENSE_BASE_X2 - 10) && (yz_r >= LENSE_RADIUS + 10))
+							{
+								cond_static.data[offset] = 0.0f;
+							}
+						}
+						else if (yz_r > INNER_CAMERA_RADIUS && x >= LENSE_BASE_X2)
+						{							
+							if (yz_r < INNER_CAMERA_RADIUS + 10)
+							{
+								const float i = std::abs(yz_r - INNER_CAMERA_RADIUS) + 2.0f;
+								cond_static.data[offset] *= std::powf(EDGE_SLOW_DOWN_FACTOR, i);
+							}
+
+							if ((x <= TMedium::width()-EDGE_THICKNESS) && (yz_r >= INNER_CAMERA_RADIUS + 10))
+							{
+								cond_static.data[offset] = 0.0f;
 							}
 						}
 					}
@@ -412,11 +448,11 @@ namespace waves
 		{
 			if (!inverse)
 			{
-				for (int z = 0; z < medium.depth(); ++z)
+				for (int z = 0; z < _pattern.depth(); ++z)
 				{
-					for (int y = 0; y < medium.height(); ++y)
+					for (int y = 0; y < _pattern.height(); ++y)
 					{
-						auto& item = medium.at(x_plane, y, z);
+						auto& item = medium.at(x_plane, y + PATTERN_Y_OFFSET, z + PATTERN_Z_OFFSET);
 						item.location = _pattern.at(0, y, z);
 						item.velocity = 0.0f;
 					}
@@ -424,12 +460,12 @@ namespace waves
 			}
 			else
 			{
-				for (int z = 0; z < medium.depth(); ++z)
+				for (int z = 0; z < _pattern.depth(); ++z)
 				{
-					for (int y = 0; y < medium.height(); ++y)
+					for (int y = 0; y < _pattern.height(); ++y)
 					{
-						auto& item = medium.at(x_plane, y, z);
-						item.location = -_pattern.at(0, y, z);
+						auto& item = medium.at(x_plane, y + PATTERN_Y_OFFSET, z + PATTERN_Z_OFFSET);
+						item.location = - _pattern.at(0, y, z);
 						item.velocity = 0.0f;
 					}
 				}
