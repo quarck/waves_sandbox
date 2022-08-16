@@ -212,6 +212,14 @@ namespace waves
 					std::string fileName{ mbsFile };
 					world.initialize(fileName);
 				}
+				else 
+				{
+					world.initialize("");
+				}
+			}
+			else
+			{
+				world.initialize("");
 			}
 		}
 
